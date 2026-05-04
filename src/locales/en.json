@@ -72,6 +72,7 @@
   "hintUndo": "Undo",
   "hintRedo": "Redo",
   "hintHover": "Hover — Crosshair reference",
+  "smooth": "Smooth",
   "typeEditor": "Channel Names",
   "typeEditorTip": "Customize channel display names",
   "typeKey": "Type",

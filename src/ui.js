@@ -329,8 +329,9 @@
     let html = '<div class="data-panel-title">#' + idx + '</div>';
     let count = 0;
     for (const ch of visibleChannels) {
-      if (idx < ch.data.length) {
-        html += '<div class="data-panel-row"><span class="data-panel-dot" style="background:' + ch.color + '"></span><span class="data-panel-name">' + ch.name + '</span><span class="data-panel-val">' + ch.data[idx].toFixed(4) + '</span></div>';
+      var sd = window.UWV.renderer.getSmoothedData(ch);
+      if (idx < sd.length) {
+        html += '<div class="data-panel-row"><span class="data-panel-dot" style="background:' + ch.color + '"></span><span class="data-panel-name">' + ch.name + '</span><span class="data-panel-val">' + sd[idx].toFixed(4) + '</span></div>';
         count++;
       }
     }

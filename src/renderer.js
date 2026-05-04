@@ -63,9 +63,10 @@
     if (s.autoY && visibleChannels.length > 0) {
       let yMin = Infinity, yMax = -Infinity;
       for (const ch of visibleChannels) {
-        for (let i = xStart; i < xEnd && i < ch.data.length; i++) {
-          if (ch.data[i] < yMin) yMin = ch.data[i];
-          if (ch.data[i] > yMax) yMax = ch.data[i];
+        var sd = getSmoothedData(ch);
+        for (let i = xStart; i < xEnd && i < sd.length; i++) {
+          if (sd[i] < yMin) yMin = sd[i];
+          if (sd[i] > yMax) yMax = sd[i];
         }
       }
       if (isFinite(yMin) && isFinite(yMax)) {
@@ -111,8 +112,9 @@
       // Data point markers
       for (var ci = 0; ci < visibleChannels.length; ci++) {
         var ch = visibleChannels[ci];
-        if (idx < ch.data.length) {
-          var dy = pad.top + plotH - (ch.data[idx] - s.yMin) / (s.yMax - s.yMin) * plotH;
+        var sd = getSmoothedData(ch);
+        if (idx < sd.length) {
+          var dy = pad.top + plotH - (sd[idx] - s.yMin) / (s.yMax - s.yMin) * plotH;
           ctx.fillStyle = ch.color;
           ctx.beginPath();
           ctx.arc(sx, dy, locked ? 4 : 3, 0, Math.PI * 2);
@@ -140,7 +142,7 @@
     var liveMx = s.mouseX;
     if (liveMx >= pad.left && liveMx <= pad.left + plotW &&
         s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
-      var liveAlpha = s.lockedX >= 0 ? 0.35 : 1.0;
+      var liveAlpha = s.lockedX >= 0 ? 0.6 : 1.0;
       liveResult = drawCrosshairAt(liveMx, false, liveAlpha);
       if (liveResult) {
         s._snappedIdx = liveResult.idx;
@@ -181,7 +183,8 @@
       if (!valEl) continue;
       const group = s.typeGroups[ch.type];
       if (ch.visible && group && group.visible && ch.data.length > 0) {
-        valEl.textContent = ch.data[ch.data.length - 1].toFixed(3);
+        var sd = getSmoothedData(ch);
+        valEl.textContent = sd[sd.length - 1].toFixed(3);
       } else {
         valEl.textContent = '--';
       }
@@ -209,9 +212,10 @@
     // Compute global Y range across ALL data
     let gYMin = Infinity, gYMax = -Infinity;
     for (const ch of visibleChannels) {
-      for (let i = 0; i < ch.data.length; i++) {
-        if (ch.data[i] < gYMin) gYMin = ch.data[i];
-        if (ch.data[i] > gYMax) gYMax = ch.data[i];
+      var sd = getSmoothedData(ch);
+      for (let i = 0; i < sd.length; i++) {
+        if (sd[i] < gYMin) gYMin = sd[i];
+        if (sd[i] > gYMax) gYMax = sd[i];
       }
     }
     if (!isFinite(gYMin) || !isFinite(gYMax)) return;
@@ -224,14 +228,15 @@
     // Draw all waveforms (downsampled)
     const step = Math.max(1, Math.floor(dataLen / mPlotW));
     for (const ch of visibleChannels) {
+      var sd = getSmoothedData(ch);
       minimapCtx.strokeStyle = ch.color;
       minimapCtx.lineWidth = 0.8;
       minimapCtx.globalAlpha = 0.7;
       minimapCtx.beginPath();
       let started = false;
-      for (let i = 0; i < ch.data.length; i += step) {
+      for (let i = 0; i < sd.length; i += step) {
         const px = mPad + (i / dataLen) * mPlotW;
-        const py = mPad + mPlotH - (ch.data[i] - gYMin) / (gYMax - gYMin) * mPlotH;
+        const py = mPad + mPlotH - (sd[i] - gYMin) / (gYMax - gYMin) * mPlotH;
         if (!started) { minimapCtx.moveTo(px, py); started = true; }
         else minimapCtx.lineTo(px, py);
       }
@@ -300,7 +305,7 @@
   }
 
   function drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, yMin, yMax) {
-    const data = ch.data;
+    const data = getSmoothedData(ch);
     ctx.strokeStyle = ch.color;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -330,10 +335,127 @@
     return nice * pow;
   }
 
+  // --- Smoothing algorithms ---
+  function smoothSMA(data, win) {
+    var n = data.length;
+    if (win < 2 || n < 2) return data;
+    var out = new Array(n);
+    var half = Math.floor(win / 2);
+    var sum = 0;
+    for (var i = 0; i < n; i++) {
+      sum += data[i];
+      if (i >= win) sum -= data[i - win];
+      if (i >= win - 1) {
+        out[i - half] = sum / win;
+      }
+    }
+    // Fill edges with nearest computed value
+    for (var i = 0; i < half; i++) out[i] = out[half] !== undefined ? out[half] : data[i];
+    for (var i = n - half; i < n; i++) out[i] = out[n - half - 1] !== undefined ? out[n - half - 1] : data[i];
+    // Fill any remaining undefined
+    for (var i = 0; i < n; i++) { if (out[i] === undefined) out[i] = data[i]; }
+    return out;
+  }
+
+  function smoothEMA(data, alpha) {
+    var n = data.length;
+    if (n < 2) return data;
+    var out = new Array(n);
+    out[0] = data[0];
+    for (var i = 1; i < n; i++) {
+      out[i] = alpha * data[i] + (1 - alpha) * out[i - 1];
+    }
+    return out;
+  }
+
+  function smoothGaussian(data, win) {
+    var n = data.length;
+    if (win < 2 || n < 2) return data;
+    // Build Gaussian kernel
+    var sigma = win / 4;
+    var half = Math.floor(win / 2);
+    var kernel = new Array(win);
+    var kSum = 0;
+    for (var i = 0; i < win; i++) {
+      var x = i - half;
+      kernel[i] = Math.exp(-(x * x) / (2 * sigma * sigma));
+      kSum += kernel[i];
+    }
+    for (var i = 0; i < win; i++) kernel[i] /= kSum;
+    // Convolve
+    var out = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var val = 0, wSum = 0;
+      for (var j = 0; j < win; j++) {
+        var k = i + j - half;
+        if (k >= 0 && k < n) {
+          val += data[k] * kernel[j];
+          wSum += kernel[j];
+        }
+      }
+      out[i] = val / wSum;
+    }
+    return out;
+  }
+
+  function smoothSG(data, win) {
+    var n = data.length;
+    if (win < 3 || n < 2) return data;
+    if (win % 2 === 0) win = win + 1;
+    var half = Math.floor(win / 2);
+    // Savitzky-Golay coefficients for polynomial degree 2, precomputed for common window sizes
+    // For general case, compute on the fly using normal equations
+    var out = new Array(n);
+    for (var i = 0; i < n; i++) {
+      var a = Math.max(0, i - half);
+      var b = Math.min(n, i + half + 1);
+      var len = b - a;
+      if (len < 3) { out[i] = data[i]; continue; }
+      // Fit quadratic: f(x) = c0 + c1*x + c2*x^2 using least squares
+      var sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
+      for (var j = a; j < b; j++) {
+        var x = j - i;
+        var y = data[j];
+        var x2 = x * x, x3 = x2 * x, x4 = x2 * x2;
+        sx += x; sx2 += x2; sx3 += x3; sx4 += x4;
+        sy += y; sxy += x * y; sx2y += x2 * y;
+      }
+      // Solve 3x3 normal equations
+      var det = sx2 * (sx2 * sx4 - sx3 * sx3) - sx * (sx * sx4 - sx2 * sx3) + sx3 * (sx * sx3 - sx2 * sx2);
+      if (Math.abs(det) < 1e-12) { out[i] = data[i]; continue; }
+      var c0 = (sy * (sx2 * sx4 - sx3 * sx3) - sx * (sxy * sx4 - sx3 * sx2y) + sx3 * (sxy * sx3 - sx2 * sx2y)) / det;
+      out[i] = c0;
+    }
+    return out;
+  }
+
+  function getSmoothedData(ch) {
+    var s = getState();
+    var method = s.smoothMethod;
+    var param = s.smoothParam;
+    if (method === 'none' || ch.data.length < 2) return ch.data;
+    // Check cache
+    var cache = ch._smoothCache;
+    if (cache && cache.method === method && cache.param === param && cache.len === ch.data.length) {
+      return cache.result;
+    }
+    var result;
+    switch (method) {
+      case 'sma':      result = smoothSMA(ch.data, param); break;
+      case 'ema':      result = smoothEMA(ch.data, param / 100); break;
+      case 'gaussian': result = smoothGaussian(ch.data, param); break;
+      case 'sg':       result = smoothSG(ch.data, param); break;
+      default:         result = ch.data;
+    }
+    ch._smoothCache = { method: method, param: param, len: ch.data.length, result: result };
+    return result;
+  }
+
   window.UWV = window.UWV || {};
   window.UWV.renderer = {
     init: init,
     resizeCanvas: resizeCanvas,
-    render: render
+    render: render,
+    getSmoothedData: getSmoothedData
   };
 })();

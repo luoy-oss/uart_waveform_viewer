@@ -58,6 +58,13 @@
     document.getElementById('input-bg').addEventListener('input', function(e) {
       window.UWV.state.bgColor = e.target.value;
     });
+    document.getElementById('sel-smooth').addEventListener('change', function(e) {
+      window.UWV.state.smoothMethod = e.target.value;
+    });
+    document.getElementById('input-smooth').addEventListener('change', function(e) {
+      window.UWV.state.smoothParam = Math.max(2, Math.min(50, parseInt(e.target.value) || 5));
+      e.target.value = window.UWV.state.smoothParam;
+    });
 
     // Canvas events
     canvas.addEventListener('wheel', window.UWV.ui.onWheel, { passive: false });

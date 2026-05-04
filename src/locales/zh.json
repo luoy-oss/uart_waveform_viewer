@@ -72,6 +72,7 @@
   "hintUndo": "撤销",
   "hintRedo": "重做",
   "hintHover": "悬停 — 十字线参考",
+  "smooth": "平滑",
   "typeEditor": "通道名配置",
   "typeEditorTip": "自定义通道显示名称",
   "typeKey": "类型",
