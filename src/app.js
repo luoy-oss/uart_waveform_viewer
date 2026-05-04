@@ -39,6 +39,7 @@
     document.getElementById('btn-redo').addEventListener('click', window.UWV.ui.redo);
     document.getElementById('btn-minimap').addEventListener('click', window.UWV.ui.toggleMinimap);
     document.getElementById('btn-datapanel').addEventListener('click', window.UWV.ui.toggleDataPanel);
+    document.getElementById('btn-split').addEventListener('click', window.UWV.ui.toggleSplitView);
 
     document.getElementById('input-points').addEventListener('change', function(e) {
       window.UWV.ui.pushHistory();

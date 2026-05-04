@@ -59,123 +59,14 @@
     let xEnd = Math.min(dataLen, xStart + xPoints);
     if (xEnd - xStart < 10) { xStart = Math.max(0, dataLen - 10); xEnd = dataLen; }
 
-    // Y axis range
-    if (s.autoY && visibleChannels.length > 0) {
-      let yMin = Infinity, yMax = -Infinity;
-      for (const ch of visibleChannels) {
-        var sd = getSmoothedData(ch);
-        for (let i = xStart; i < xEnd && i < sd.length; i++) {
-          if (sd[i] < yMin) yMin = sd[i];
-          if (sd[i] > yMax) yMax = sd[i];
-        }
-      }
-      if (isFinite(yMin) && isFinite(yMax)) {
-        const margin = (yMax - yMin) * 0.08 || 1;
-        s.yMin = yMin - margin;
-        s.yMax = yMax + margin;
-      }
-    }
-    if (s.yMin >= s.yMax) s.yMax = s.yMin + 1;
-
-    // Draw
-    drawGrid(pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(pad.left, pad.top, plotW, plotH);
-    ctx.clip();
-
-    for (const ch of visibleChannels) {
-      drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
-    }
-
-    // --- Helper: draw a crosshair + data points at a given X position ---
-    function drawCrosshairAt(cx, locked, alpha) {
-      if (cx < pad.left || cx > pad.left + plotW) return;
-      var xFrac = (cx - pad.left) / plotW;
-      var idx = Math.round(xStart + xFrac * (xEnd - xStart));
-      idx = Math.max(0, Math.min(idx, dataLen - 1));
-      var sx = pad.left + (idx - xStart) / (xEnd - xStart) * plotW;
-
-      // Vertical line
-      ctx.save();
-      ctx.globalAlpha = alpha;
-      ctx.strokeStyle = locked ? 'rgba(74,144,217,0.9)' : 'rgba(74,144,217,0.5)';
-      ctx.lineWidth = locked ? 1.5 : 1;
-      if (!locked) ctx.setLineDash([4, 4]);
-      ctx.beginPath();
-      ctx.moveTo(sx, pad.top);
-      ctx.lineTo(sx, pad.top + plotH);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Data point markers
-      for (var ci = 0; ci < visibleChannels.length; ci++) {
-        var ch = visibleChannels[ci];
-        var sd = getSmoothedData(ch);
-        if (idx < sd.length) {
-          var dy = pad.top + plotH - (sd[idx] - s.yMin) / (s.yMax - s.yMin) * plotH;
-          ctx.fillStyle = ch.color;
-          ctx.beginPath();
-          ctx.arc(sx, dy, locked ? 4 : 3, 0, Math.PI * 2);
-          ctx.fill();
-          if (locked) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-          }
-        }
-      }
-      ctx.restore();
-      return { idx: idx, sx: sx };
-    }
-
-    // Draw locked crosshair first (if any)
-    var liveResult = null;
-    if (s.lockedX >= 0) {
-      drawCrosshairAt(s.lockedX, true, 1.0);
-      s._lockedIdx = Math.round((s.lockedX - pad.left) / plotW * (xEnd - xStart) + xStart);
-      s._lockedIdx = Math.max(0, Math.min(s._lockedIdx, dataLen - 1));
-    }
-
-    // Draw live hover crosshair (always when mouse is in plot area)
-    var liveMx = s.mouseX;
-    if (liveMx >= pad.left && liveMx <= pad.left + plotW &&
-        s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
-      var liveAlpha = s.lockedX >= 0 ? 0.6 : 1.0;
-      liveResult = drawCrosshairAt(liveMx, false, liveAlpha);
-      if (liveResult) {
-        s._snappedIdx = liveResult.idx;
-        s._snappedX = liveResult.sx;
-      }
+    // --- Split view or overlay mode ---
+    if (s.splitView === 'channel' && visibleChannels.length > 1) {
+      renderSplitByChannel(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
+    } else if (s.splitView === 'type' && visibleChannels.length > 1) {
+      renderSplitByType(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
     } else {
-      s._snappedIdx = -1;
-      s._snappedX = -1;
+      renderOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
     }
-
-    // When not locked, use live as the primary snapped value
-    if (s.lockedX < 0 && liveResult) {
-      // already set above
-    } else if (s.lockedX >= 0) {
-      // Keep locked index for data panel primary display
-    }
-
-    // Selection overlay (left-click drag)
-    if (s.isSelecting && s.selectStartX >= 0 && s.selectEndX >= 0) {
-      const sx1 = Math.max(pad.left, Math.min(s.selectStartX, s.selectEndX));
-      const sx2 = Math.min(pad.left + plotW, Math.max(s.selectStartX, s.selectEndX));
-      if (sx2 > sx1) {
-        ctx.fillStyle = 'rgba(74, 144, 217, 0.15)';
-        ctx.fillRect(sx1, pad.top, sx2 - sx1, plotH);
-        ctx.strokeStyle = 'rgba(74, 144, 217, 0.6)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.strokeRect(sx1, pad.top, sx2 - sx1, plotH);
-        ctx.setLineDash([]);
-      }
-    }
-
-    ctx.restore();
 
     // Update sidebar values (only for visible channels)
     for (const ch of s.channels) {
@@ -195,6 +86,328 @@
     // Render minimap
     if (s.showMinimap && minimapCanvas && minimapCtx) {
       renderMinimap(visibleChannels, dataLen, xStart, xEnd);
+    }
+  }
+
+  // --- Overlay mode (all channels on one plot) ---
+  function renderOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH) {
+    // Y axis range
+    if (s.autoY && visibleChannels.length > 0) {
+      let yMin = Infinity, yMax = -Infinity;
+      for (const ch of visibleChannels) {
+        var sd = getSmoothedData(ch);
+        for (let i = xStart; i < xEnd && i < sd.length; i++) {
+          if (sd[i] < yMin) yMin = sd[i];
+          if (sd[i] > yMax) yMax = sd[i];
+        }
+      }
+      if (isFinite(yMin) && isFinite(yMax)) {
+        const margin = (yMax - yMin) * 0.08 || 1;
+        s.yMin = yMin - margin;
+        s.yMax = yMax + margin;
+      }
+    }
+    if (s.yMin >= s.yMax) s.yMax = s.yMin + 1;
+
+    drawGrid(pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pad.left, pad.top, plotW, plotH);
+    ctx.clip();
+
+    for (const ch of visibleChannels) {
+      drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
+    }
+
+    drawCrosshairOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
+    drawSelectionOverlay(s, pad, plotW, plotH);
+
+    ctx.restore();
+  }
+
+  function drawCrosshairOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH) {
+    var lockedResult = null, liveResult = null;
+
+    function drawAt(cx, locked, alpha) {
+      if (cx < pad.left || cx > pad.left + plotW) return null;
+      var xFrac = (cx - pad.left) / plotW;
+      var idx = Math.round(xStart + xFrac * (xEnd - xStart));
+      idx = Math.max(0, Math.min(idx, dataLen - 1));
+      var sx = pad.left + (idx - xStart) / (xEnd - xStart) * plotW;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = locked ? 'rgba(74,144,217,0.9)' : 'rgba(74,144,217,0.5)';
+      ctx.lineWidth = locked ? 1.5 : 1;
+      if (!locked) ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(sx, pad.top);
+      ctx.lineTo(sx, pad.top + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (var ci = 0; ci < visibleChannels.length; ci++) {
+        var ch = visibleChannels[ci];
+        var sd = getSmoothedData(ch);
+        if (idx < sd.length) {
+          var dy = pad.top + plotH - (sd[idx] - s.yMin) / (s.yMax - s.yMin) * plotH;
+          ctx.fillStyle = ch.color;
+          ctx.beginPath();
+          ctx.arc(sx, dy, locked ? 4 : 3, 0, Math.PI * 2);
+          ctx.fill();
+          if (locked) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+        }
+      }
+      ctx.restore();
+      return { idx: idx, sx: sx };
+    }
+
+    if (s.lockedX >= 0) {
+      drawAt(s.lockedX, true, 1.0);
+      s._lockedIdx = Math.round((s.lockedX - pad.left) / plotW * (xEnd - xStart) + xStart);
+      s._lockedIdx = Math.max(0, Math.min(s._lockedIdx, dataLen - 1));
+    }
+    var liveMx = s.mouseX;
+    if (liveMx >= pad.left && liveMx <= pad.left + plotW && s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
+      liveResult = drawAt(liveMx, false, s.lockedX >= 0 ? 0.6 : 1.0);
+      if (liveResult) { s._snappedIdx = liveResult.idx; s._snappedX = liveResult.sx; }
+    } else {
+      s._snappedIdx = -1; s._snappedX = -1;
+    }
+  }
+
+  // --- Split view mode (each channel in its own sub-plot) ---
+  function renderSplitByChannel(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH) {
+    var n = visibleChannels.length;
+    var subH = plotH / n;
+
+    // Compute per-channel Y ranges
+    var chYMin = new Array(n), chYMax = new Array(n);
+    for (var ci = 0; ci < n; ci++) {
+      var ch = visibleChannels[ci];
+      var sd = getSmoothedData(ch);
+      if (s.autoY) {
+        var lo = Infinity, hi = -Infinity;
+        for (var i = xStart; i < xEnd && i < sd.length; i++) {
+          if (sd[i] < lo) lo = sd[i];
+          if (sd[i] > hi) hi = sd[i];
+        }
+        if (!isFinite(lo) || !isFinite(hi)) { lo = -1; hi = 1; }
+        if (lo === hi) { lo -= 1; hi += 1; }
+        var margin = (hi - lo) * 0.08 || 1;
+        chYMin[ci] = lo - margin;
+        chYMax[ci] = hi + margin;
+      } else {
+        chYMin[ci] = s.yMin;
+        chYMax[ci] = s.yMax;
+      }
+    }
+
+    // Draw each sub-plot
+    for (var ci = 0; ci < n; ci++) {
+      var ch = visibleChannels[ci];
+      var subTop = pad.top + ci * subH;
+      var subPad = { top: subTop, bottom: pad.bottom, left: pad.left, right: pad.right };
+
+      drawGrid(subPad, plotW, subH, xStart, xEnd, chYMin[ci], chYMax[ci]);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad.left, subTop, plotW, subH);
+      ctx.clip();
+      drawWaveform(ch, subPad, plotW, subH, xStart, xEnd, chYMin[ci], chYMax[ci]);
+      ctx.restore();
+
+      // Channel label
+      ctx.save();
+      ctx.fillStyle = ch.color;
+      ctx.font = 'bold 11px Consolas, monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(ch.name, pad.left + 5, subTop + 3);
+      ctx.restore();
+
+      // Separator line
+      if (ci > 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, subTop);
+        ctx.lineTo(pad.left + plotW, subTop);
+        ctx.stroke();
+      }
+    }
+
+    // Crosshair spanning all sub-plots
+    drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax);
+    drawSelectionOverlay(s, pad, plotW, plotH);
+  }
+
+  function drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax, chSubTop) {
+    var n = visibleChannels.length;
+
+    function drawAt(cx, locked, alpha) {
+      if (cx < pad.left || cx > pad.left + plotW) return null;
+      var xFrac = (cx - pad.left) / plotW;
+      var idx = Math.round(xStart + xFrac * (xEnd - xStart));
+      idx = Math.max(0, Math.min(idx, dataLen - 1));
+      var sx = pad.left + (idx - xStart) / (xEnd - xStart) * plotW;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = locked ? 'rgba(74,144,217,0.9)' : 'rgba(74,144,217,0.5)';
+      ctx.lineWidth = locked ? 1.5 : 1;
+      if (!locked) ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(sx, pad.top);
+      ctx.lineTo(sx, pad.top + plotH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Data point markers in each sub-plot
+      for (var ci = 0; ci < n; ci++) {
+        var ch = visibleChannels[ci];
+        var sd = getSmoothedData(ch);
+        if (idx < sd.length) {
+          var subT = chSubTop ? chSubTop[ci] : pad.top + ci * subH;
+          var dy = subT + subH - (sd[idx] - chYMin[ci]) / (chYMax[ci] - chYMin[ci]) * subH;
+          ctx.fillStyle = ch.color;
+          ctx.beginPath();
+          ctx.arc(sx, dy, locked ? 4 : 3, 0, Math.PI * 2);
+          ctx.fill();
+          if (locked) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); }
+        }
+      }
+      ctx.restore();
+      return { idx: idx, sx: sx };
+    }
+
+    if (s.lockedX >= 0) {
+      drawAt(s.lockedX, true, 1.0);
+      s._lockedIdx = Math.round((s.lockedX - pad.left) / plotW * (xEnd - xStart) + xStart);
+      s._lockedIdx = Math.max(0, Math.min(s._lockedIdx, dataLen - 1));
+    }
+    var liveMx = s.mouseX;
+    if (liveMx >= pad.left && liveMx <= pad.left + plotW && s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
+      var liveResult = drawAt(liveMx, false, s.lockedX >= 0 ? 0.6 : 1.0);
+      if (liveResult) { s._snappedIdx = liveResult.idx; s._snappedX = liveResult.sx; }
+    } else {
+      s._snappedIdx = -1; s._snappedX = -1;
+    }
+  }
+
+  // --- Split by type mode (all channels of one type share a sub-plot) ---
+  function renderSplitByType(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH) {
+    // Group visible channels by type, preserving order
+    var groups = [];
+    var seen = {};
+    for (var i = 0; i < visibleChannels.length; i++) {
+      var ch = visibleChannels[i];
+      if (!seen[ch.type]) {
+        seen[ch.type] = [];
+        groups.push({ type: ch.type, channels: seen[ch.type] });
+      }
+      seen[ch.type].push(ch);
+    }
+
+    var n = groups.length;
+    if (n === 0) return;
+    var subH = plotH / n;
+
+    // Compute per-group Y ranges
+    var gYMin = new Array(n), gYMax = new Array(n);
+    for (var gi = 0; gi < n; gi++) {
+      var chs = groups[gi].channels;
+      if (s.autoY) {
+        var lo = Infinity, hi = -Infinity;
+        for (var ci = 0; ci < chs.length; ci++) {
+          var sd = getSmoothedData(chs[ci]);
+          for (var k = xStart; k < xEnd && k < sd.length; k++) {
+            if (sd[k] < lo) lo = sd[k];
+            if (sd[k] > hi) hi = sd[k];
+          }
+        }
+        if (!isFinite(lo) || !isFinite(hi)) { lo = -1; hi = 1; }
+        if (lo === hi) { lo -= 1; hi += 1; }
+        var margin = (hi - lo) * 0.08 || 1;
+        gYMin[gi] = lo - margin;
+        gYMax[gi] = hi + margin;
+      } else {
+        gYMin[gi] = s.yMin;
+        gYMax[gi] = s.yMax;
+      }
+    }
+
+    // Draw each sub-plot
+    for (var gi = 0; gi < n; gi++) {
+      var grp = groups[gi];
+      var subTop = pad.top + gi * subH;
+      var subPad = { top: subTop, bottom: pad.bottom, left: pad.left, right: pad.right };
+
+      drawGrid(subPad, plotW, subH, xStart, xEnd, gYMin[gi], gYMax[gi]);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pad.left, subTop, plotW, subH);
+      ctx.clip();
+      for (var ci = 0; ci < grp.channels.length; ci++) {
+        drawWaveform(grp.channels[ci], subPad, plotW, subH, xStart, xEnd, gYMin[gi], gYMax[gi]);
+      }
+      ctx.restore();
+
+      // Type label
+      var typeNames = window.UWV.i18n.getTypeNames();
+      var names = typeNames[grp.type];
+      var labelText = grp.type + (names ? ' (' + names.join('/') + ')' : '');
+      ctx.save();
+      ctx.fillStyle = grp.channels[0].color;
+      ctx.font = 'bold 11px Consolas, monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillText(labelText, pad.left + 5, subTop + 3);
+      ctx.restore();
+
+      // Separator line
+      if (gi > 0) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, subTop);
+        ctx.lineTo(pad.left + plotW, subTop);
+        ctx.stroke();
+      }
+    }
+
+    // Crosshair spanning all sub-plots
+    // Map per-channel Y ranges and sub-plot tops from group ranges
+    var nch = visibleChannels.length;
+    var chYMin = new Array(nch), chYMax = new Array(nch), chSubTop = new Array(nch);
+    for (var gi = 0; gi < n; gi++) {
+      for (var ci = 0; ci < groups[gi].channels.length; ci++) {
+        var chIdx = visibleChannels.indexOf(groups[gi].channels[ci]);
+        if (chIdx >= 0) {
+          chYMin[chIdx] = gYMin[gi];
+          chYMax[chIdx] = gYMax[gi];
+          chSubTop[chIdx] = pad.top + gi * subH;
+        }
+      }
+    }
+    drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax, chSubTop);
+    drawSelectionOverlay(s, pad, plotW, plotH);
+  }
+
+  function drawSelectionOverlay(s, pad, plotW, plotH) {
+    if (s.isSelecting && s.selectStartX >= 0 && s.selectEndX >= 0) {
+      var sx1 = Math.max(pad.left, Math.min(s.selectStartX, s.selectEndX));
+      var sx2 = Math.min(pad.left + plotW, Math.max(s.selectStartX, s.selectEndX));
+      if (sx2 > sx1) {
+        ctx.fillStyle = 'rgba(74, 144, 217, 0.15)';
+        ctx.fillRect(sx1, pad.top, sx2 - sx1, plotH);
+        ctx.strokeStyle = 'rgba(74, 144, 217, 0.6)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(sx1, pad.top, sx2 - sx1, plotH);
+        ctx.setLineDash([]);
+      }
     }
   }
 

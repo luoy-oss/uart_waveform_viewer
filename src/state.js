@@ -75,6 +75,9 @@
     smoothMethod: 'none', // 'none', 'sma', 'ema', 'gaussian', 'sg'
     smoothParam: 5,       // window size (sma/gaussian/sg) or alpha*100 (ema)
 
+    // Split view: 'off', 'channel', 'type'
+    splitView: 'off',
+
     // Stats
     lineCount: 0,
     errorCount: 0,

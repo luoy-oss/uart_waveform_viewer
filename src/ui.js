@@ -82,7 +82,11 @@
           const chCb = document.createElement('input');
           chCb.type = 'checkbox';
           chCb.checked = ch.visible;
-          chCb.addEventListener('change', function() { ch.visible = chCb.checked; updateDataPanel(); });
+          chCb.addEventListener('change', function() {
+            ch.visible = chCb.checked;
+            if (chCb.checked) group.visible = true;
+            updateDataPanel();
+          });
           item.appendChild(chCb);
 
           const chColor = document.createElement('span');
@@ -510,6 +514,19 @@
     if (mc) mc.style.display = s.showMinimap ? 'block' : 'none';
   }
 
+  // --- Split view ---
+  function toggleSplitView() {
+    const s = getState();
+    var modes = ['off', 'channel', 'type'];
+    var idx = modes.indexOf(s.splitView);
+    s.splitView = modes[(idx + 1) % modes.length];
+    var btn = document.getElementById('btn-split');
+    if (btn) {
+      btn.className = s.splitView !== 'off' ? 'active' : '';
+      btn.textContent = s.splitView === 'channel' ? t('splitChannel') : s.splitView === 'type' ? t('splitType') : t('splitView');
+    }
+  }
+
   // --- 导出/导入 ---
   function exportData() {
     const s = getState();
@@ -837,6 +854,7 @@
     getXRange: getXRange,
     getVisibleChannels: getVisibleChannels,
     openTypeNamesEditor: openTypeNamesEditor,
-    updateChannelNames: updateChannelNames
+    updateChannelNames: updateChannelNames,
+    toggleSplitView: toggleSplitView
   };
 })();
