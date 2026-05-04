@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>串口波形查看器</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Top config bar -->
+<div id="config-bar">
+  <button id="btn-port" class="btn" data-i18n="selectPort" data-i18n-title="selectPort">选择串口</button>
+  <span id="port-info" data-i18n="notConnected">未连接</span>
+  <div class="separator"></div>
+  <label data-i18n="baudRate">波特率</label>
+  <select id="sel-baud">
+    <option value="9600">9600</option>
+    <option value="19200">19200</option>
+    <option value="38400">38400</option>
+    <option value="57600">57600</option>
+    <option value="115200" selected>115200</option>
+    <option value="230400">230400</option>
+    <option value="460800">460800</option>
+    <option value="921600">921600</option>
+  </select>
+  <div class="separator"></div>
+  <label data-i18n="dataBits">数据位</label>
+  <select id="sel-databits"><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option></select>
+  <label data-i18n="stopBits">停止位</label>
+  <select id="sel-stopbits"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option></select>
+  <label data-i18n="parity">校验</label>
+  <select id="sel-parity"><option value="none" selected data-i18n="parityNone">无</option><option value="even" data-i18n="parityEven">偶校验</option><option value="odd" data-i18n="parityOdd">奇校验</option></select>
+  <label data-i18n="flowControl">流控</label>
+  <select id="sel-flow"><option value="none" selected data-i18n="flowNone">无</option><option value="rtscts">RTS/CTS</option></select>
+  <div class="separator"></div>
+  <button id="btn-connect" class="btn" data-i18n="connect">连 接</button>
+  <div class="separator"></div>
+  <button id="btn-export" class="btn" data-i18n="export" data-i18n-title="exportTip">导出</button>
+  <button id="btn-import" class="btn" data-i18n="import" data-i18n-title="importTip">导入</button>
+  <input type="file" id="file-import" accept=".csv,.json" style="display:none;">
+  <div class="separator"></div>
+  <button id="btn-lang" class="btn" title="切换语言 / Switch Language">EN</button>
+</div>
+
+<!-- Main area -->
+<div id="main">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <span data-i18n="channelList">通道列表</span>
+      <div class="btns">
+        <button id="btn-show-all" data-i18n="selectAll" data-i18n-title="selectAllTip">全选</button>
+        <button id="btn-hide-all" data-i18n="deselectAll" data-i18n-title="deselectAllTip">全不选</button>
+      </div>
+    </div>
+    <div id="channel-list">
+      <div id="no-data-hint"><span data-i18n="waitingData">等待串口数据...</span><br><span data-i18n="autoDetect">连接后将自动识别通道</span></div>
+    </div>
+  </div>
+
+  <!-- Waveform area -->
+  <div id="waveform-area">
+    <div id="canvas-container">
+      <canvas id="waveform-canvas"></canvas>
+      <div id="tooltip"></div>
+      <button id="hint-toggle" title="操作帮助 / Help">?</button>
+      <div id="hint-panel">
+        <div id="hint-header">
+          <span data-i18n="hintTitle">操作指南</span>
+          <button id="hint-close">&times;</button>
+        </div>
+        <div id="hint-body">
+          <div class="hint-item"><kbd>LMB</kbd> <span data-i18n="hintLeftClick">左键点击 — 显示数值</span></div>
+          <div class="hint-item"><kbd>LMB Drag</kbd> <span data-i18n="hintLeftDrag">左键拖拽 — 框选放大</span></div>
+          <div class="hint-item"><kbd>RMB Drag</kbd> <span data-i18n="hintRightDrag">右键拖拽 — 自由平移</span></div>
+          <div class="hint-item"><kbd>Scroll</kbd> <span data-i18n="hintScroll">滚轮 — Y轴缩放</span></div>
+          <div class="hint-item"><kbd>Shift+Scroll</kbd> <span data-i18n="hintShiftScroll">Shift+滚轮 — X轴缩放</span></div>
+          <div class="hint-item"><kbd>Ctrl+Z</kbd> <span data-i18n="hintUndo">撤销</span></div>
+          <div class="hint-item"><kbd>Ctrl+Y</kbd> <span data-i18n="hintRedo">重做</span></div>
+          <div class="hint-item"><kbd>Hover</kbd> <span data-i18n="hintHover">悬停 — 十字线参考</span></div>
+        </div>
+      </div>
+      <div id="minimap-container">
+        <canvas id="minimap-canvas" width="220" height="100"></canvas>
+      </div>
+      <div id="data-panel"><div class="data-panel-title" data-i18n="dataPanelEmpty">点击波形查看数据</div></div>
+    </div>
+    <div id="control-bar">
+      <button id="btn-auto" class="active" data-i18n="autoY" data-i18n-title="autoYTip">自动Y</button>
+      <button id="btn-auto-x" data-i18n="autoX" data-i18n-title="autoXTip">自动X</button>
+      <button id="btn-y-zoom-in" data-i18n-title="yZoomInTip">Y+</button>
+      <button id="btn-y-zoom-out" data-i18n-title="yZoomOutTip">Y-</button>
+      <button id="btn-x-zoom-in" data-i18n-title="xZoomInTip">X+</button>
+      <button id="btn-x-zoom-out" data-i18n-title="xZoomOutTip">X-</button>
+      <div class="separator"></div>
+      <button id="btn-undo" data-i18n-title="undoTip" disabled>&#x21A9;</button>
+      <button id="btn-redo" data-i18n-title="redoTip" disabled>&#x21AA;</button>
+      <div class="separator"></div>
+      <button id="btn-pause" data-i18n="pause">暂停</button>
+      <button id="btn-clear" data-i18n="clear">清除</button>
+      <div class="separator"></div>
+      <button id="btn-minimap" class="active" data-i18n-title="minimapTip">Map</button>
+      <button id="btn-datapanel" class="active" data-i18n-title="dataPanelTip">Info</button>
+      <div class="separator"></div>
+      <label data-i18n="displayPoints">显示点数</label>
+      <input type="number" id="input-points" value="500" min="50" max="100000" step="50">
+      <label data-i18n="yRange">Y范围</label>
+      <input type="number" id="input-ymin" value="-10" step="0.1" style="width:65px" title="Y min">
+      <label>~</label>
+      <input type="number" id="input-ymax" value="10" step="0.1" style="width:65px" title="Y max">
+      <div class="separator"></div>
+      <label data-i18n="background">背景</label>
+      <input type="color" id="input-bg" value="#1a1a2e">
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar">
+  <div class="status-item"><span class="dot off" id="dot-conn"></span><span id="txt-conn" data-i18n="notConnected">未连接</span></div>
+  <div class="status-item"><span data-i18n="receiveRate">接收速率</span>: <span id="txt-rate">0</span> <span data-i18n="linesPerSec">行/秒</span></div>
+  <div class="status-item"><span data-i18n="totalLines">总行数</span>: <span id="txt-lines">0</span></div>
+  <div class="status-item"><span data-i18n="parseErrors">解析错误</span>: <span id="txt-errors">0</span></div>
+  <div class="status-item"><span data-i18n="bufferPoints">缓冲点数</span>: <span id="txt-point-count">0</span></div>
+</div>
+
+<script src="state.js"></script>
+<script src="i18n.js"></script>
+<script src="serial.js"></script>
+<script src="parser.js"></script>
+<script src="renderer.js"></script>
+<script src="ui.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

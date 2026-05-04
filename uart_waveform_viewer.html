@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>串口波形查看器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Microsoft YaHei', 'Consolas', monospace; background: #1a1a2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+
+/* === 顶部配置栏 === */
+#config-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #16213e; border-bottom: 1px solid #0f3460; flex-shrink: 0; flex-wrap: wrap; }
+#config-bar label { font-size: 12px; color: #a0a0c0; }
+#config-bar select { background: #0f3460; color: #e0e0e0; border: 1px solid #1a4080; border-radius: 3px; padding: 3px 6px; font-size: 12px; font-family: inherit; cursor: pointer; }
+#config-bar select:focus { outline: none; border-color: #4a90d9; }
+.btn { padding: 4px 14px; border: none; border-radius: 3px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: bold; transition: opacity 0.15s; }
+.btn:hover { opacity: 0.85; }
+#btn-connect { background: #4a90d9; color: #fff; min-width: 80px; }
+#btn-connect.connected { background: #e74c3c; }
+#btn-export { background: #9b59b6; color: #fff; }
+#btn-import { background: #e67e22; color: #fff; }
+#btn-port { background: #2ecc71; color: #fff; }
+#btn-port.has-port { background: #0f3460; color: #4a90d9; border: 1px solid #4a90d9; }
+.separator { width: 1px; height: 20px; background: #0f3460; margin: 0 4px; }
+#port-info { font-size: 12px; color: #4a90d9; font-weight: bold; min-width: 60px; }
+
+/* === 主区域 === */
+#main { display: flex; flex: 1; overflow: hidden; }
+
+/* === 左侧通道面板 === */
+#sidebar { width: 220px; min-width: 160px; background: #16213e; border-right: 1px solid #0f3460; display: flex; flex-direction: column; flex-shrink: 0; }
+#sidebar-header { padding: 8px 10px; font-size: 13px; font-weight: bold; color: #4a90d9; border-bottom: 1px solid #0f3460; display: flex; justify-content: space-between; align-items: center; }
+#sidebar-header .btns { display: flex; gap: 4px; }
+#sidebar-header button { background: none; border: 1px solid #4a90d9; color: #4a90d9; border-radius: 3px; padding: 1px 8px; font-size: 11px; cursor: pointer; font-family: inherit; }
+#sidebar-header button:hover { background: #4a90d9; color: #fff; }
+#channel-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+.channel-group { padding: 2px 10px; }
+.channel-group-header { display: flex; align-items: center; gap: 6px; padding: 3px 0; cursor: pointer; font-size: 12px; font-weight: bold; }
+.channel-group-header .arrow { font-size: 10px; transition: transform 0.15s; width: 12px; text-align: center; }
+.channel-group-header .arrow.collapsed { transform: rotate(-90deg); }
+.channel-group-header .type-color { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+.channel-item { display: flex; align-items: center; gap: 6px; padding: 2px 0 2px 24px; font-size: 11px; }
+.channel-item .ch-color { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.channel-item .value-display { margin-left: auto; color: #888; font-size: 10px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: Consolas, monospace; }
+input[type="checkbox"] { accent-color: #4a90d9; cursor: pointer; }
+#no-data-hint { padding: 20px 10px; color: #556; font-size: 12px; text-align: center; line-height: 1.8; }
+
+/* === 波形区域 === */
+#waveform-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#canvas-container { flex: 1; position: relative; overflow: hidden; }
+#waveform-canvas { display: block; width: 100%; height: 100%; }
+#tooltip { position: absolute; display: none; background: rgba(22, 33, 62, 0.94); border: 1px solid #4a90d9; border-radius: 4px; padding: 6px 10px; font-size: 11px; pointer-events: none; z-index: 10; white-space: pre-line; max-height: 300px; overflow-y: auto; }
+
+/* === 控制栏 === */
+#control-bar { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: #16213e; border-top: 1px solid #0f3460; flex-shrink: 0; flex-wrap: wrap; }
+#control-bar button { background: #0f3460; color: #e0e0e0; border: 1px solid #1a4080; border-radius: 3px; padding: 3px 10px; font-size: 11px; cursor: pointer; font-family: inherit; }
+#control-bar button:hover { background: #1a4080; }
+#control-bar button.active { background: #4a90d9; color: #fff; border-color: #4a90d9; }
+#control-bar label { font-size: 11px; color: #a0a0c0; }
+#control-bar input[type="number"] { background: #0f3460; color: #e0e0e0; border: 1px solid #1a4080; border-radius: 3px; padding: 2px 6px; font-size: 11px; font-family: inherit; width: 70px; }
+#control-bar input[type="color"] { width: 28px; height: 22px; padding: 1px 2px; border: 1px solid #1a4080; border-radius: 3px; background: #0f3460; cursor: pointer; }
+
+/* === 状态栏 === */
+#status-bar { display: flex; align-items: center; gap: 16px; padding: 3px 12px; background: #0f1a35; border-top: 1px solid #0f3460; font-size: 11px; color: #888; flex-shrink: 0; }
+.status-item { display: flex; align-items: center; gap: 4px; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot.off { background: #555; }
+.dot.on { background: #2ecc71; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #16213e; }
+::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #1a4080; }
+</style>
+</head>
+<body>
+
+<!-- 顶部配置栏 -->
+<div id="config-bar">
+  <button id="btn-port" class="btn" title="点击选择串口设备">选择串口</button>
+  <span id="port-info">未连接</span>
+  <div class="separator"></div>
+  <label>波特率:</label>
+  <select id="sel-baud">
+    <option value="9600">9600</option>
+    <option value="19200">19200</option>
+    <option value="38400">38400</option>
+    <option value="57600">57600</option>
+    <option value="115200" selected>115200</option>
+    <option value="230400">230400</option>
+    <option value="460800">460800</option>
+    <option value="921600">921600</option>
+  </select>
+  <div class="separator"></div>
+  <label>数据位:</label>
+  <select id="sel-databits"><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8" selected>8</option></select>
+  <label>停止位:</label>
+  <select id="sel-stopbits"><option value="1" selected>1</option><option value="1.5">1.5</option><option value="2">2</option></select>
+  <label>校验:</label>
+  <select id="sel-parity"><option value="none" selected>无</option><option value="even">偶校验</option><option value="odd">奇校验</option></select>
+  <label>流控:</label>
+  <select id="sel-flow"><option value="none" selected>无</option><option value="rtscts">RTS/CTS</option></select>
+  <div class="separator"></div>
+  <button id="btn-connect" class="btn">连 接</button>
+  <div class="separator"></div>
+  <button id="btn-export" class="btn" title="导出当前数据为CSV文件" style="background:#9b59b6;color:#fff;">导出</button>
+  <button id="btn-import" class="btn" title="导入CSV数据文件" style="background:#e67e22;color:#fff;">导入</button>
+  <input type="file" id="file-import" accept=".csv,.json" style="display:none;">
+</div>
+
+<!-- 主区域 -->
+<div id="main">
+  <!-- 左侧通道面板 -->
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <span>通道列表</span>
+      <div class="btns">
+        <button id="btn-show-all" title="显示全部">全选</button>
+        <button id="btn-hide-all" title="隐藏全部">全不选</button>
+      </div>
+    </div>
+    <div id="channel-list">
+      <div id="no-data-hint">等待串口数据...<br>连接后将自动识别通道</div>
+    </div>
+  </div>
+
+  <!-- 波形区域 -->
+  <div id="waveform-area">
+    <div id="canvas-container">
+      <canvas id="waveform-canvas"></canvas>
+      <div id="tooltip"></div>
+    </div>
+    <div id="control-bar">
+      <button id="btn-auto" class="active" title="自动缩放Y轴">自动Y</button>
+      <button id="btn-auto-x" title="重置X轴显示最新500点">自动X</button>
+      <button id="btn-y-zoom-in" title="Y轴放大 (滚轮上)">Y+</button>
+      <button id="btn-y-zoom-out" title="Y轴缩小 (滚轮下)">Y-</button>
+      <button id="btn-x-zoom-in" title="X轴放大 (显示更少点)">X+</button>
+      <button id="btn-x-zoom-out" title="X轴缩小 (显示更多点)">X-</button>
+      <div class="separator"></div>
+      <button id="btn-pause">暂停</button>
+      <button id="btn-clear">清除</button>
+      <div class="separator"></div>
+      <label>显示点数:</label>
+      <input type="number" id="input-points" value="500" min="50" max="100000" step="50">
+      <label>Y范围:</label>
+      <input type="number" id="input-ymin" value="-10" step="0.1" style="width:65px" title="Y最小值">
+      <label>~</label>
+      <input type="number" id="input-ymax" value="10" step="0.1" style="width:65px" title="Y最大值">
+      <div class="separator"></div>
+      <label>背景:</label>
+      <input type="color" id="input-bg" value="#1a1a2e" title="波形背景颜色">
+    </div>
+  </div>
+</div>
+
+<!-- 底部状态栏 -->
+<div id="status-bar">
+  <div class="status-item"><span class="dot off" id="dot-conn"></span><span id="txt-conn">未连接</span></div>
+  <div class="status-item">接收速率: <span id="txt-rate">0</span> 行/秒</div>
+  <div class="status-item">总行数: <span id="txt-lines">0</span></div>
+  <div class="status-item">解析错误: <span id="txt-errors">0</span></div>
+  <div class="status-item">缓冲点数: <span id="txt-point-count">0</span></div>
+</div>
+
+<script>
+// ============================================================
+//  配置与状态
+// ============================================================
+const COLORS = [
+  '#4a90d9','#e74c3c','#2ecc71','#f39c12','#9b59b6',
+  '#1abc9c','#e67e22','#3498db','#e91e63','#00bcd4',
+  '#8bc34a','#ff9800','#795548','#607d8b','#cddc39',
+  '#ff5722'
+];
+let bgColor = '#1a1a2e';
+const GRID_COLOR = '#1e2a4a';
+const GRID_TEXT_COLOR = '#556';
+const AXIS_COLOR = '#3a4a6a';
+const CROSSHAIR_COLOR = 'rgba(74,144,217,0.4)';
+
+// 通道显示名映射 (可自定义)
+const TYPE_NAMES = {
+  'att':   ['横滚角', '俯仰角', '偏航角'],
+  'imu_g': ['陀螺仪X', '陀螺仪Y', '陀螺仪Z'],
+  'imu_a': ['加速度X', '加速度Y', '加速度Z'],
+  'leg':   ['右腿长', '左腿长'],
+  'tor_j': ['左1力矩', '左2力矩', '右1力矩', '右2力矩'],
+  'tor_w': ['轮力矩1', '轮力矩0'],
+  'tor_h': ['左髋力矩', '右髋力矩'],
+  'frce':  ['左支撑力', '右支撑力'],
+  'move':  ['速度', '位置'],
+  'hgt':   ['当前高度', '设定高度'],
+};
+
+const state = {
+  port: null,
+  portInfo: '',
+  reader: null,
+  connected: false,
+  disconnecting: false,
+  paused: false,
+  channels: [],
+  channelMap: {},
+  typeGroups: {},
+  typeOrder: [],
+  maxPoints: 500,
+  autoY: true,
+  yMin: -10,
+  yMax: 10,
+  xScroll: 0,
+  mouseX: -1,
+  mouseY: -1,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  dragStartYMin: 0,
+  dragStartYMax: 0,
+  dragStartScroll: 0,
+  lineCount: 0,
+  errorCount: 0,
+  rateCounter: 0,
+  rateDisplay: 0,
+  textBuffer: '',
+};
+
+let canvas, ctx;
+
+// ============================================================
+//  初始化
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  canvas = document.getElementById('waveform-canvas');
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  document.getElementById('btn-port').addEventListener('click', selectPort);
+  document.getElementById('btn-connect').addEventListener('click', toggleConnect);
+  document.getElementById('btn-auto').addEventListener('click', toggleAutoY);
+  document.getElementById('btn-auto-x').addEventListener('click', autoX);
+  document.getElementById('btn-y-zoom-in').addEventListener('click', () => zoomY(1.2));
+  document.getElementById('btn-y-zoom-out').addEventListener('click', () => zoomY(1/1.2));
+  document.getElementById('btn-x-zoom-in').addEventListener('click', () => zoomX(1.2));
+  document.getElementById('btn-x-zoom-out').addEventListener('click', () => zoomX(1/1.2));
+  document.getElementById('btn-pause').addEventListener('click', togglePause);
+  document.getElementById('btn-clear').addEventListener('click', clearData);
+  document.getElementById('btn-show-all').addEventListener('click', () => setAllVisible(true));
+  document.getElementById('btn-hide-all').addEventListener('click', () => setAllVisible(false));
+  document.getElementById('btn-export').addEventListener('click', exportData);
+  document.getElementById('btn-import').addEventListener('click', () => document.getElementById('file-import').click());
+  document.getElementById('file-import').addEventListener('change', importData);
+
+  document.getElementById('input-points').addEventListener('change', e => {
+    state.maxPoints = Math.max(50, parseInt(e.target.value) || 500);
+    e.target.value = state.maxPoints;
+  });
+  document.getElementById('input-ymin').addEventListener('change', e => {
+    state.yMin = parseFloat(e.target.value) || -10;
+    state.autoY = false;
+    updateAutoButton();
+  });
+  document.getElementById('input-ymax').addEventListener('change', e => {
+    state.yMax = parseFloat(e.target.value) || 10;
+    state.autoY = false;
+    updateAutoButton();
+  });
+  document.getElementById('input-bg').addEventListener('input', e => {
+    bgColor = e.target.value;
+  });
+
+  canvas.addEventListener('wheel', onWheel, {passive: false});
+  canvas.addEventListener('mousedown', onMouseDown);
+  canvas.addEventListener('mousemove', onMouseMove);
+  canvas.addEventListener('mouseup', onMouseUp);
+  canvas.addEventListener('mouseleave', onMouseLeave);
+
+  // 统计定时器
+  setInterval(() => {
+    state.rateDisplay = state.rateCounter;
+    state.rateCounter = 0;
+    document.getElementById('txt-rate').textContent = state.rateDisplay;
+    document.getElementById('txt-lines').textContent = state.lineCount;
+    document.getElementById('txt-errors').textContent = state.errorCount;
+  }, 1000);
+
+  requestAnimationFrame(renderLoop);
+});
+
+function resizeCanvas() {
+  const container = document.getElementById('canvas-container');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = container.clientWidth * dpr;
+  canvas.height = container.clientHeight * dpr;
+  canvas.style.width = container.clientWidth + 'px';
+  canvas.style.height = container.clientHeight + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+// ============================================================
+//  串口操作
+// ============================================================
+async function selectPort() {
+  if (state.connected) return;
+  try {
+    const port = await navigator.serial.requestPort();
+    state.port = port;
+    // 尝试获取端口信息
+    const info = port.getInfo();
+    const vid = info.usbVendorId ? `VID:${info.usbVendorId.toString(16).padStart(4,'0')}` : '';
+    const pid = info.usbProductId ? `PID:${info.usbProductId.toString(16).padStart(4,'0')}` : '';
+    state.portInfo = vid && pid ? `${vid} ${pid}` : '已选择';
+    document.getElementById('port-info').textContent = state.portInfo;
+    document.getElementById('btn-port').classList.add('has-port');
+    document.getElementById('btn-port').textContent = '更换串口';
+  } catch (e) {
+    if (e.name === 'NotFoundError') {
+      // 用户取消选择，不做处理
+    } else {
+      console.error('选择端口失败:', e);
+      alert('选择端口失败: ' + e.message);
+    }
+  }
+}
+
+async function toggleConnect() {
+  if (state.connected) {
+    await disconnectSerial();
+  } else {
+    await connectSerial();
+  }
+}
+
+async function connectSerial() {
+  if (!state.port) {
+    alert('请先点击"选择串口"选择一个串口设备');
+    return;
+  }
+
+  try {
+    const baudRate = parseInt(document.getElementById('sel-baud').value);
+    const dataBits = parseInt(document.getElementById('sel-databits').value);
+    const stopBits = parseFloat(document.getElementById('sel-stopbits').value);
+    const parity = document.getElementById('sel-parity').value;
+    const flowControl = document.getElementById('sel-flow').value;
+
+    await state.port.open({
+      baudRate,
+      dataBits,
+      stopBits,
+      parity,
+      flowControl: flowControl === 'rtscts' ? 'hardware' : 'none',
+      bufferSize: 65536
+    });
+
+    state.connected = true;
+    state.textBuffer = '';
+
+    document.getElementById('btn-connect').textContent = '断 开';
+    document.getElementById('btn-connect').classList.add('connected');
+    document.getElementById('btn-port').disabled = true;
+    document.getElementById('btn-port').style.opacity = '0.5';
+    document.getElementById('dot-conn').className = 'dot on';
+    document.getElementById('txt-conn').textContent = `已连接 ${state.portInfo} @ ${baudRate}`;
+
+    readSerialLoop();
+  } catch (e) {
+    console.error('连接失败:', e);
+    alert('连接失败: ' + e.message);
+  }
+}
+
+async function disconnectSerial() {
+  if (!state.connected) return;
+  state.disconnecting = true;
+
+  try {
+    if (state.reader) {
+      // cancel() 让 pending read() 抛异常，循环 catch 会 break
+      try { await state.reader.cancel(); } catch(e) {}
+    }
+    // 强制释放锁（如果 cancel 没释放的话）
+    if (state.reader) {
+      try { state.reader.releaseLock(); } catch(e) {}
+    }
+    state.reader = null;
+
+    if (state.port) {
+      await state.port.close();
+    }
+  } catch (e) {
+    console.error('断开错误:', e);
+  }
+
+  state.connected = false;
+  state.disconnecting = false;
+
+  document.getElementById('btn-connect').textContent = '连 接';
+  document.getElementById('btn-connect').classList.remove('connected');
+  document.getElementById('btn-port').disabled = false;
+  document.getElementById('btn-port').style.opacity = '1';
+  document.getElementById('dot-conn').className = 'dot off';
+  document.getElementById('txt-conn').textContent = '未连接';
+}
+
+async function readSerialLoop() {
+  const decoder = new TextDecoder();
+  while (state.port && state.port.readable && state.connected && !state.disconnecting) {
+    try {
+      state.reader = state.port.readable.getReader();
+      while (!state.disconnecting) {
+        const { value, done } = await state.reader.read();
+        if (done) break;
+        if (value) {
+          state.textBuffer += decoder.decode(value, { stream: true });
+          processTextBuffer();
+        }
+      }
+    } catch (e) {
+      // cancel() 或断流导致的错误是正常的
+      if (!state.disconnecting) {
+        console.error('读取错误:', e);
+      }
+      break;
+    } finally {
+      if (state.reader) {
+        try { state.reader.releaseLock(); } catch(e) {}
+        state.reader = null;
+      }
+    }
+  }
+}
+
+// ============================================================
+//  数据解析
+// ============================================================
+function processTextBuffer() {
+  if (state.paused) return;
+  const lines = state.textBuffer.split('\n');
+  state.textBuffer = lines.pop() || '';
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length > 0) parseLine(trimmed);
+  }
+}
+
+function parseLine(line) {
+  const colonIdx = line.indexOf(':');
+  if (colonIdx < 1) { state.errorCount++; return; }
+
+  const type = line.substring(0, colonIdx).trim();
+  const dataStr = line.substring(colonIdx + 1);
+  const values = dataStr.split(',').map(s => parseFloat(s.trim()));
+
+  for (let i = 0; i < values.length; i++) {
+    if (isNaN(values[i])) { state.errorCount++; continue; }
+
+    const key = type + ':' + i;
+    let ch = state.channelMap[key];
+
+    if (!ch) {
+      const colorIdx = state.channels.length % COLORS.length;
+      let group = state.typeGroups[type];
+      if (!group) {
+        group = { visible: true, collapsed: false, channels: [] };
+        state.typeGroups[type] = group;
+        state.typeOrder.push(type);
+      }
+
+      // 生成显示名
+      const names = TYPE_NAMES[type];
+      const displayName = names && names[i] ? names[i] : (type + '[' + i + ']');
+
+      ch = {
+        id: key,
+        type: type,
+        index: i,
+        name: displayName,
+        color: COLORS[colorIdx],
+        visible: true,
+        data: []
+      };
+      state.channels.push(ch);
+      state.channelMap[key] = ch;
+      group.channels.push(ch);
+      rebuildChannelList();
+    }
+
+    ch.data.push(values[i]);
+    if (ch.data.length > state.maxPoints * 3) {
+      ch.data.splice(0, ch.data.length - state.maxPoints * 2);
+    }
+  }
+
+  state.lineCount++;
+  state.rateCounter++;
+}
+
+// ============================================================
+//  通道列表UI
+// ============================================================
+function rebuildChannelList() {
+  const container = document.getElementById('channel-list');
+  container.innerHTML = '';
+
+  if (state.typeOrder.length === 0) {
+    container.innerHTML = '<div id="no-data-hint">等待串口数据...<br>连接后将自动识别通道</div>';
+    return;
+  }
+
+  for (const type of state.typeOrder) {
+    const group = state.typeGroups[type];
+    if (!group) continue;
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'channel-group';
+
+    // 分组标题
+    const header = document.createElement('div');
+    header.className = 'channel-group-header';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow' + (group.collapsed ? ' collapsed' : '');
+    arrow.textContent = '▼';
+    header.appendChild(arrow);
+
+    const groupCb = document.createElement('input');
+    groupCb.type = 'checkbox';
+    groupCb.checked = group.visible;
+    groupCb.title = '显示/隐藏该类型所有通道';
+    groupCb.addEventListener('change', () => {
+      group.visible = groupCb.checked;
+      group.channels.forEach(ch => { ch.visible = groupCb.checked; });
+      rebuildChannelList();
+    });
+    header.appendChild(groupCb);
+
+    const colorDot = document.createElement('span');
+    colorDot.className = 'type-color';
+    colorDot.style.background = group.channels.length > 0 ? group.channels[0].color : '#888';
+    header.appendChild(colorDot);
+
+    const label = document.createElement('span');
+    label.textContent = type + ' (' + group.channels.length + ')';
+    header.appendChild(label);
+
+    arrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.collapsed = !group.collapsed;
+      rebuildChannelList();
+    });
+    header.addEventListener('click', (e) => {
+      if (e.target !== groupCb) {
+        group.collapsed = !group.collapsed;
+        rebuildChannelList();
+      }
+    });
+    groupDiv.appendChild(header);
+
+    // 子通道
+    if (!group.collapsed) {
+      for (const ch of group.channels) {
+        const item = document.createElement('div');
+        item.className = 'channel-item';
+
+        const chCb = document.createElement('input');
+        chCb.type = 'checkbox';
+        chCb.checked = ch.visible;
+        chCb.addEventListener('change', () => { ch.visible = chCb.checked; });
+        item.appendChild(chCb);
+
+        const chColor = document.createElement('span');
+        chColor.className = 'ch-color';
+        chColor.style.background = ch.color;
+        item.appendChild(chColor);
+
+        const chLabel = document.createElement('span');
+        chLabel.textContent = ch.name;
+        item.appendChild(chLabel);
+
+        const valSpan = document.createElement('span');
+        valSpan.className = 'value-display';
+        valSpan.id = 'val-' + ch.id;
+        valSpan.textContent = '--';
+        item.appendChild(valSpan);
+
+        groupDiv.appendChild(item);
+      }
+    }
+    container.appendChild(groupDiv);
+  }
+}
+
+function setAllVisible(visible) {
+  for (const type of state.typeOrder) {
+    const group = state.typeGroups[type];
+    if (!group) continue;
+    group.visible = visible;
+    group.channels.forEach(ch => { ch.visible = visible; });
+  }
+  rebuildChannelList();
+}
+
+// ============================================================
+//  波形渲染
+// ============================================================
+function renderLoop() {
+  render();
+  requestAnimationFrame(renderLoop);
+}
+
+function render() {
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, w, h);
+
+  const pad = { top: 20, bottom: 30, left: 60, right: 15 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+  if (plotW < 10 || plotH < 10) return;
+
+  // 可见通道
+  const visibleChannels = state.channels.filter(ch => {
+    const group = state.typeGroups[ch.type];
+    return ch.visible && group && group.visible && ch.data.length > 1;
+  });
+
+  // 数据长度
+  let dataLen = 0;
+  for (const ch of visibleChannels) {
+    if (ch.data.length > dataLen) dataLen = ch.data.length;
+  }
+  if (dataLen === 0) dataLen = 100;
+
+  // X轴范围
+  let xPoints = state.maxPoints;
+  let xStart = Math.max(0, dataLen - xPoints - state.xScroll);
+  let xEnd = Math.min(dataLen, xStart + xPoints);
+  if (xEnd - xStart < 10) { xStart = Math.max(0, dataLen - 10); xEnd = dataLen; }
+
+  // Y轴范围
+  if (state.autoY && visibleChannels.length > 0) {
+    let yMin = Infinity, yMax = -Infinity;
+    for (const ch of visibleChannels) {
+      for (let i = xStart; i < xEnd && i < ch.data.length; i++) {
+        if (ch.data[i] < yMin) yMin = ch.data[i];
+        if (ch.data[i] > yMax) yMax = ch.data[i];
+      }
+    }
+    if (isFinite(yMin) && isFinite(yMax)) {
+      const margin = (yMax - yMin) * 0.08 || 1;
+      state.yMin = yMin - margin;
+      state.yMax = yMax + margin;
+    }
+  }
+  if (state.yMin >= state.yMax) state.yMax = state.yMin + 1;
+
+  // 绘制
+  drawGrid(pad, plotW, plotH, xStart, xEnd, state.yMin, state.yMax);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(pad.left, pad.top, plotW, plotH);
+  ctx.clip();
+
+  for (const ch of visibleChannels) {
+    drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, state.yMin, state.yMax);
+  }
+
+  // 十字线
+  if (state.mouseX >= pad.left && state.mouseX <= pad.left + plotW &&
+      state.mouseY >= pad.top && state.mouseY <= pad.top + plotH) {
+    ctx.strokeStyle = CROSSHAIR_COLOR;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(state.mouseX, pad.top);
+    ctx.lineTo(state.mouseX, pad.top + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const xFrac = (state.mouseX - pad.left) / plotW;
+    const hoverIdx = Math.round(xStart + xFrac * (xEnd - xStart));
+    updateTooltip(visibleChannels, hoverIdx, state.mouseX, state.mouseY, w, h);
+  } else {
+    document.getElementById('tooltip').style.display = 'none';
+  }
+
+  ctx.restore();
+
+  // 更新侧边栏数值
+  for (const ch of state.channels) {
+    const valEl = document.getElementById('val-' + ch.id);
+    if (valEl && ch.data.length > 0) {
+      valEl.textContent = ch.data[ch.data.length - 1].toFixed(3);
+    }
+  }
+
+  document.getElementById('txt-point-count').textContent = dataLen;
+}
+
+function drawGrid(pad, plotW, plotH, xStart, xEnd, yMin, yMax) {
+  ctx.strokeStyle = GRID_COLOR;
+  ctx.lineWidth = 1;
+  ctx.fillStyle = GRID_TEXT_COLOR;
+  ctx.font = '10px Consolas, monospace';
+
+  // Y轴网格
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  const yStep = niceStep(yMax - yMin, 8);
+  const yFirst = Math.ceil(yMin / yStep) * yStep;
+  for (let y = yFirst; y <= yMax; y += yStep) {
+    const py = pad.top + plotH - (y - yMin) / (yMax - yMin) * plotH;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py);
+    ctx.lineTo(pad.left + plotW, py);
+    ctx.stroke();
+    ctx.fillText(y.toFixed(2), pad.left - 5, py);
+  }
+
+  // Y=0轴线
+  if (yMin < 0 && yMax > 0) {
+    const py0 = pad.top + plotH - (0 - yMin) / (yMax - yMin) * plotH;
+    ctx.strokeStyle = AXIS_COLOR;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, py0);
+    ctx.lineTo(pad.left + plotW, py0);
+    ctx.stroke();
+    ctx.strokeStyle = GRID_COLOR;
+  }
+
+  // X轴网格
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const xStep = niceStep(xEnd - xStart, 10);
+  const xFirst = Math.ceil(xStart / xStep) * xStep;
+  for (let x = xFirst; x <= xEnd; x += xStep) {
+    const px = pad.left + (x - xStart) / (xEnd - xStart) * plotW;
+    ctx.beginPath();
+    ctx.moveTo(px, pad.top);
+    ctx.lineTo(px, pad.top + plotH);
+    ctx.stroke();
+    ctx.fillText(x.toString(), px, pad.top + plotH + 4);
+  }
+
+  // 边框
+  ctx.strokeStyle = AXIS_COLOR;
+  ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+}
+
+function drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, yMin, yMax) {
+  const data = ch.data;
+  ctx.strokeStyle = ch.color;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+
+  let started = false;
+  const iStart = Math.max(0, Math.floor(xStart));
+  const iEnd = Math.min(data.length, Math.ceil(xEnd));
+
+  for (let i = iStart; i < iEnd; i++) {
+    const px = pad.left + (i - xStart) / (xEnd - xStart) * plotW;
+    const py = pad.top + plotH - (data[i] - yMin) / (yMax - yMin) * plotH;
+    if (!started) { ctx.moveTo(px, py); started = true; }
+    else ctx.lineTo(px, py);
+  }
+  ctx.stroke();
+}
+
+function updateTooltip(channels, idx, mx, my, canvasW, canvasH) {
+  const tooltip = document.getElementById('tooltip');
+  if (idx < 0) { tooltip.style.display = 'none'; return; }
+
+  let lines = [];
+  for (const ch of channels) {
+    if (idx < ch.data.length) {
+      lines.push(`<span style="color:${ch.color}">■</span> ${ch.name}: ${ch.data[idx].toFixed(4)}`);
+    }
+  }
+  if (lines.length === 0) { tooltip.style.display = 'none'; return; }
+
+  tooltip.innerHTML = lines.join('<br>');
+  tooltip.style.display = 'block';
+
+  let tx = mx + 15, ty = my - 10;
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  if (tx + tw > canvasW - 10) tx = mx - tw - 15;
+  if (ty + th > canvasH - 10) ty = canvasH - th - 10;
+  if (ty < 5) ty = 5;
+  tooltip.style.left = tx + 'px';
+  tooltip.style.top = ty + 'px';
+}
+
+// ============================================================
+//  交互控制
+// ============================================================
+function onWheel(e) {
+  e.preventDefault();
+  const factor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
+  if (e.shiftKey) zoomX(factor);
+  else zoomY(factor);
+}
+
+function zoomY(factor) {
+  const center = (state.yMin + state.yMax) / 2;
+  const halfRange = (state.yMax - state.yMin) / 2 * factor;
+  state.yMin = center - halfRange;
+  state.yMax = center + halfRange;
+  state.autoY = false;
+  updateAutoButton();
+  syncYInputs();
+}
+
+function zoomX(factor) {
+  state.maxPoints = Math.max(50, Math.round(state.maxPoints / factor));
+  document.getElementById('input-points').value = state.maxPoints;
+}
+
+function autoX() {
+  state.maxPoints = 500;
+  state.xScroll = 0;
+  document.getElementById('input-points').value = state.maxPoints;
+}
+
+function onMouseDown(e) {
+  if (e.button !== 0) return;
+  state.isDragging = true;
+  state.dragStartX = e.offsetX;
+  state.dragStartY = e.offsetY;
+  state.dragStartYMin = state.yMin;
+  state.dragStartYMax = state.yMax;
+  state.dragStartScroll = state.xScroll;
+  canvas.style.cursor = 'grabbing';
+}
+
+function onMouseMove(e) {
+  state.mouseX = e.offsetX;
+  state.mouseY = e.offsetY;
+
+  if (state.isDragging) {
+    const dx = e.offsetX - state.dragStartX;
+    const dy = e.offsetY - state.dragStartY;
+    const w = canvas.width / (window.devicePixelRatio || 1);
+    const h = canvas.height / (window.devicePixelRatio || 1);
+    const plotW = w - 60 - 15;
+    const plotH = h - 20 - 30;
+
+    // Y轴拖拽
+    const yRange = state.dragStartYMax - state.dragStartYMin;
+    state.yMin = state.dragStartYMin + (dy / plotH) * yRange;
+    state.yMax = state.dragStartYMax + (dy / plotH) * yRange;
+    state.autoY = false;
+    updateAutoButton();
+    syncYInputs();
+
+    // X轴拖拽
+    state.xScroll = state.dragStartScroll - Math.round((dx / plotW) * state.maxPoints);
+  }
+}
+
+function onMouseUp() {
+  state.isDragging = false;
+  canvas.style.cursor = 'default';
+}
+
+function onMouseLeave() {
+  state.isDragging = false;
+  state.mouseX = -1;
+  state.mouseY = -1;
+  canvas.style.cursor = 'default';
+  document.getElementById('tooltip').style.display = 'none';
+}
+
+// ============================================================
+//  控制按钮
+// ============================================================
+function toggleAutoY() {
+  state.autoY = !state.autoY;
+  updateAutoButton();
+  if (state.autoY) syncYInputs();
+}
+
+function updateAutoButton() {
+  document.getElementById('btn-auto').className = state.autoY ? 'active' : '';
+}
+
+function syncYInputs() {
+  document.getElementById('input-ymin').value = state.yMin.toFixed(2);
+  document.getElementById('input-ymax').value = state.yMax.toFixed(2);
+}
+
+function togglePause() {
+  state.paused = !state.paused;
+  document.getElementById('btn-pause').className = state.paused ? 'active' : '';
+  document.getElementById('btn-pause').textContent = state.paused ? '继续' : '暂停';
+}
+
+function clearData() {
+  for (const ch of state.channels) ch.data = [];
+  state.lineCount = 0;
+  state.errorCount = 0;
+  state.xScroll = 0;
+}
+
+// ============================================================
+//  工具函数
+// ============================================================
+function niceStep(range, maxTicks) {
+  const rough = range / maxTicks;
+  const pow = Math.pow(10, Math.floor(Math.log10(rough)));
+  const norm = rough / pow;
+  let nice;
+  if (norm <= 1) nice = 1;
+  else if (norm <= 2) nice = 2;
+  else if (norm <= 5) nice = 5;
+  else nice = 10;
+  return nice * pow;
+}
+
+window.addEventListener('beforeunload', () => {
+  if (state.connected) disconnectSerial();
+});
+
+// ============================================================
+//  数据导出/导入
+// ============================================================
+function exportData() {
+  if (state.channels.length === 0) {
+    alert('没有数据可导出，请先接收或导入数据');
+    return;
+  }
+
+  // 找到最大数据长度
+  let maxLen = 0;
+  for (const ch of state.channels) {
+    if (ch.data.length > maxLen) maxLen = ch.data.length;
+  }
+  if (maxLen === 0) {
+    alert('没有数据可导出');
+    return;
+  }
+
+  // 构建CSV内容
+  // 头部：元数据行（通道信息）
+  let csv = '# 导出时间: ' + new Date().toLocaleString() + '\n';
+  csv += '# 通道数: ' + state.channels.length + '\n';
+  csv += '# 数据点数: ' + maxLen + '\n';
+
+  // 列名行
+  const headers = ['索引'];
+  for (const ch of state.channels) {
+    headers.push(ch.name + '(' + ch.type + ':' + ch.index + ')');
+  }
+  csv += headers.join(',') + '\n';
+
+  // 颜色行（用于导入时恢复颜色）
+  const colors = ['#'];
+  for (const ch of state.channels) {
+    colors.push(ch.color);
+  }
+  csv += '#COLORS:' + colors.slice(1).join(',') + '\n';
+
+  // 数据行
+  for (let i = 0; i < maxLen; i++) {
+    const row = [i];
+    for (const ch of state.channels) {
+      row.push(i < ch.data.length ? ch.data[i].toFixed(6) : '');
+    }
+    csv += row.join(',') + '\n';
+  }
+
+  // 创建下载
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  a.download = 'waveform_data_' + timestamp + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    try {
+      const content = event.target.result;
+      const lines = content.split('\n');
+
+      if (lines.length < 3) {
+        alert('文件格式错误：内容过短');
+        return;
+      }
+
+      // 解析头部信息
+      let channelNames = [];
+      let channelColors = [];
+      let dataStartLine = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+
+        // 解析颜色行
+        if (line.startsWith('#COLORS:')) {
+          channelColors = line.substring(8).split(',');
+          continue;
+        }
+
+        // 跳过注释行
+        if (line.startsWith('#')) continue;
+
+        // 第一个非注释行应该是列名
+        if (dataStartLine < 0) {
+          const headers = line.split(',');
+          // 跳过"索引"列
+          for (let j = 1; j < headers.length; j++) {
+            const header = headers[j].trim();
+            // 解析格式："通道名(type:index)"
+            const match = header.match(/^(.+?)\((.+?):(\d+)\)$/);
+            if (match) {
+              channelNames.push({
+                name: match[1],
+                type: match[2],
+                index: parseInt(match[3])
+              });
+            } else {
+              // 简单格式，使用默认类型
+              channelNames.push({
+                name: header,
+                type: 'imported',
+                index: j - 1
+              });
+            }
+          }
+          dataStartLine = i + 1;
+          break;
+        }
+      }
+
+      if (channelNames.length === 0) {
+        alert('无法解析通道信息，请检查文件格式');
+        return;
+      }
+
+      // 清除现有数据
+      clearData();
+      state.channels = [];
+      state.channelMap = {};
+      state.typeGroups = {};
+      state.typeOrder = [];
+
+      // 创建通道
+      for (let i = 0; i < channelNames.length; i++) {
+        const info = channelNames[i];
+        const key = info.type + ':' + info.index;
+        const color = (i < channelColors.length) ? channelColors[i] : COLORS[i % COLORS.length];
+
+        const ch = {
+          id: key,
+          type: info.type,
+          index: info.index,
+          name: info.name,
+          color: color,
+          visible: true,
+          data: []
+        };
+
+        state.channels.push(ch);
+        state.channelMap[key] = ch;
+
+        // 创建类型分组
+        if (!state.typeGroups[info.type]) {
+          state.typeGroups[info.type] = { visible: true, collapsed: false, channels: [] };
+          state.typeOrder.push(info.type);
+        }
+        state.typeGroups[info.type].channels.push(ch);
+      }
+
+      // 解析数据行
+      let importedCount = 0;
+      for (let i = dataStartLine; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line === '' || line.startsWith('#')) continue;
+
+        const values = line.split(',');
+        // 跳过索引列
+        for (let j = 1; j < values.length && j <= channelNames.length; j++) {
+          const val = parseFloat(values[j]);
+          if (!isNaN(val)) {
+            state.channels[j - 1].data.push(val);
+          }
+        }
+        importedCount++;
+      }
+
+      if (importedCount === 0) {
+        alert('未能解析到有效数据');
+        return;
+      }
+
+      // 更新显示
+      rebuildChannelList();
+
+      // 自动调整显示范围
+      state.autoY = true;
+      state.maxPoints = Math.max(50, importedCount);
+      document.getElementById('input-points').value = state.maxPoints;
+
+      alert(`成功导入 ${importedCount} 行数据，${channelNames.length} 个通道`);
+
+    } catch (err) {
+      console.error('导入错误:', err);
+      alert('导入失败: ' + err.message);
+    }
+  };
+
+  reader.onerror = function() {
+    alert('读取文件失败');
+  };
+
+  reader.readAsText(file, 'UTF-8');
+  // 重置input，允许重复导入同一文件
+  e.target.value = '';
+}
+</script>
+</body>
+</html>

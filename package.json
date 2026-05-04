@@ -1,0 +1,13 @@
+{
+  "name": "uart-waveform-viewer",
+  "version": "1.0.0",
+  "description": "Web Serial API based UART waveform viewer / 基于 Web Serial API 的串口波形查看器",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npx serve src -l 8080 --cors"
+  },
+  "keywords": ["uart", "serial", "waveform", "viewer", "web-serial-api"],
+  "license": "MIT",
+  "author": "luoy-oss"
+}
