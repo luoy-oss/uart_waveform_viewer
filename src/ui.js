@@ -46,6 +46,7 @@
         group.visible = groupCb.checked;
         group.channels.forEach(function(ch) { ch.visible = groupCb.checked; });
         rebuildChannelList();
+        updateDataPanel();
       });
       header.appendChild(groupCb);
 
@@ -81,7 +82,7 @@
           const chCb = document.createElement('input');
           chCb.type = 'checkbox';
           chCb.checked = ch.visible;
-          chCb.addEventListener('change', function() { ch.visible = chCb.checked; });
+          chCb.addEventListener('change', function() { ch.visible = chCb.checked; updateDataPanel(); });
           item.appendChild(chCb);
 
           const chColor = document.createElement('span');
@@ -115,6 +116,7 @@
       group.channels.forEach(function(ch) { ch.visible = visible; });
     }
     rebuildChannelList();
+    updateDataPanel();
   }
 
   // --- 控制按钮 ---
@@ -306,9 +308,11 @@
     const visibleChannels = getVisibleChannels();
     const xr = getXRange();
 
-    // Use snapped index from renderer if available, otherwise calculate
+    // When locked, use locked index; otherwise use live snapped index
     var idx;
-    if (s._snappedIdx >= 0) {
+    if (s.lockedX >= 0 && s._lockedIdx >= 0) {
+      idx = s._lockedIdx;
+    } else if (s._snappedIdx >= 0) {
       idx = s._snappedIdx;
     } else {
       const effectiveMx = s.lockedX >= 0 ? s.lockedX : mx;
@@ -622,6 +626,183 @@
     }
   }
 
+  // --- 通道名编辑器 ---
+  function updateChannelNames() {
+    const s = getState();
+    const typeNames = window.UWV.i18n.getTypeNames();
+    for (const ch of s.channels) {
+      const names = typeNames[ch.type];
+      if (names && names[ch.index] !== undefined) {
+        ch.name = names[ch.index];
+      } else {
+        ch.name = ch.type + '[' + ch.index + ']';
+      }
+    }
+  }
+
+  function openTypeNamesEditor() {
+    // Remove existing overlay if any
+    var old = document.getElementById('type-editor-overlay');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'type-editor-overlay';
+
+    var modal = document.createElement('div');
+    modal.id = 'type-editor-modal';
+
+    var title = document.createElement('h3');
+    title.textContent = t('typeEditor');
+    modal.appendChild(title);
+
+    var rowsDiv = document.createElement('div');
+    rowsDiv.id = 'type-editor-rows';
+    modal.appendChild(rowsDiv);
+
+    // Load current merged typeNames
+    var currentTypeNames = window.UWV.i18n.getTypeNames();
+    var entries = Object.keys(currentTypeNames);
+
+    function addRow(key, names) {
+      var row = document.createElement('div');
+      row.className = 'type-editor-row';
+
+      var keyInput = document.createElement('input');
+      keyInput.type = 'text';
+      keyInput.value = key || '';
+      keyInput.placeholder = t('typeKey');
+      row.appendChild(keyInput);
+
+      var namesInput = document.createElement('input');
+      namesInput.type = 'text';
+      namesInput.value = (names || []).join(',');
+      namesInput.placeholder = t('subChannelNames');
+      row.appendChild(namesInput);
+
+      var delBtn = document.createElement('button');
+      delBtn.textContent = t('remove');
+      delBtn.addEventListener('click', function() { row.remove(); });
+      row.appendChild(delBtn);
+
+      rowsDiv.appendChild(row);
+    }
+
+    for (var i = 0; i < entries.length; i++) {
+      addRow(entries[i], currentTypeNames[entries[i]]);
+    }
+
+    // Button bar
+    var btns = document.createElement('div');
+    btns.id = 'type-editor-btns';
+
+    var addBtn = document.createElement('button');
+    addBtn.textContent = t('addType');
+    addBtn.addEventListener('click', function() { addRow('', []); });
+    btns.appendChild(addBtn);
+
+    var importBtn = document.createElement('button');
+    importBtn.textContent = t('importConfig');
+    importBtn.addEventListener('click', function() {
+      var fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = '.json';
+      fileInput.addEventListener('change', function(e) {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            var imported = JSON.parse(ev.target.result);
+            if (typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Invalid');
+            rowsDiv.innerHTML = '';
+            var keys = Object.keys(imported);
+            for (var j = 0; j < keys.length; j++) {
+              var val = imported[keys[j]];
+              addRow(keys[j], Array.isArray(val) ? val : []);
+            }
+          } catch (err) {
+            alert('Invalid JSON file');
+          }
+        };
+        reader.readAsText(file);
+      });
+      fileInput.click();
+    });
+    btns.appendChild(importBtn);
+
+    var exportBtn = document.createElement('button');
+    exportBtn.textContent = t('exportConfig');
+    exportBtn.addEventListener('click', function() {
+      var result = {};
+      var rows = rowsDiv.querySelectorAll('.type-editor-row');
+      for (var r = 0; r < rows.length; r++) {
+        var inputs = rows[r].querySelectorAll('input');
+        var k = inputs[0].value.trim();
+        if (k) {
+          result[k] = inputs[1].value.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+        }
+      }
+      var blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'uwv_channel_names.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    btns.appendChild(exportBtn);
+
+    var resetBtn = document.createElement('button');
+    resetBtn.className = 'danger';
+    resetBtn.textContent = t('reset');
+    resetBtn.addEventListener('click', function() {
+      localStorage.removeItem('uwv-custom-typeNames');
+      rowsDiv.innerHTML = '';
+      var defaults = window.UWV.i18n.getDefaultTypeNames();
+      var defKeys = Object.keys(defaults);
+      for (var d = 0; d < defKeys.length; d++) {
+        addRow(defKeys[d], defaults[defKeys[d]]);
+      }
+      updateChannelNames();
+      rebuildChannelList();
+      alert(t('typeNamesReset'));
+    });
+    btns.appendChild(resetBtn);
+
+    var saveBtn = document.createElement('button');
+    saveBtn.className = 'primary';
+    saveBtn.textContent = t('save');
+    saveBtn.addEventListener('click', function() {
+      var result = {};
+      var rows = rowsDiv.querySelectorAll('.type-editor-row');
+      for (var r = 0; r < rows.length; r++) {
+        var inputs = rows[r].querySelectorAll('input');
+        var k = inputs[0].value.trim();
+        if (k) {
+          result[k] = inputs[1].value.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+        }
+      }
+      window.UWV.i18n.saveCustomTypeNames(result);
+      updateChannelNames();
+      rebuildChannelList();
+      overlay.remove();
+      alert(t('typeNamesSaved'));
+    });
+    btns.appendChild(saveBtn);
+
+    var closeBtn = document.createElement('button');
+    closeBtn.textContent = '×';
+    closeBtn.style.cssText = 'margin-left:auto;font-size:16px;padding:4px 10px;';
+    closeBtn.addEventListener('click', function() { overlay.remove(); });
+    btns.appendChild(closeBtn);
+
+    modal.appendChild(btns);
+    overlay.appendChild(modal);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+  }
+
   window.UWV = window.UWV || {};
   window.UWV.ui = {
     rebuildChannelList: rebuildChannelList,
@@ -653,6 +834,8 @@
     updateStatusText: updateStatusText,
     getPlotParams: getPlotParams,
     getXRange: getXRange,
-    getVisibleChannels: getVisibleChannels
+    getVisibleChannels: getVisibleChannels,
+    openTypeNamesEditor: openTypeNamesEditor,
+    updateChannelNames: updateChannelNames
   };
 })();

@@ -95,3 +95,21 @@ input[type="checkbox"] { accent-color: #4a90d9; cursor: pointer; }
 ::-webkit-scrollbar-track { background: #16213e; }
 ::-webkit-scrollbar-thumb { background: #0f3460; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #1a4080; }
+
+/* === Type Names Editor Modal === */
+#type-editor-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+#type-editor-modal { background: #16213e; border: 1px solid #1a4080; border-radius: 8px; padding: 20px; width: 520px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+#type-editor-modal h3 { margin: 0 0 12px; color: #4a90d9; font-size: 15px; }
+#type-editor-rows { flex: 1; overflow-y: auto; margin-bottom: 12px; max-height: 50vh; }
+.type-editor-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.type-editor-row input:first-child { width: 100px; flex-shrink: 0; background: #0f3460; border: 1px solid #1a4080; border-radius: 3px; color: #e0e0e0; padding: 4px 6px; font-size: 12px; font-family: Consolas, monospace; }
+.type-editor-row input:last-of-type { flex: 1; background: #0a1628; border: 1px solid #1a4080; border-radius: 3px; color: #e0e0e0; padding: 4px 6px; font-size: 12px; font-family: Consolas, monospace; }
+.type-editor-row button { background: #c0392b; border: none; border-radius: 3px; color: #fff; padding: 4px 8px; font-size: 11px; cursor: pointer; flex-shrink: 0; }
+.type-editor-row button:hover { background: #e74c3c; }
+#type-editor-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+#type-editor-btns button { background: #0f3460; border: 1px solid #1a4080; border-radius: 4px; color: #e0e0e0; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+#type-editor-btns button:hover { background: #1a4080; }
+#type-editor-btns button.primary { background: #4a90d9; border-color: #4a90d9; }
+#type-editor-btns button.primary:hover { background: #5da0e9; }
+#type-editor-btns button.danger { background: #c0392b; border-color: #c0392b; }
+#type-editor-btns button.danger:hover { background: #e74c3c; }

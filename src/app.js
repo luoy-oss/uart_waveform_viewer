@@ -30,6 +30,7 @@
     document.getElementById('btn-clear').addEventListener('click', window.UWV.ui.clearData);
     document.getElementById('btn-show-all').addEventListener('click', function() { window.UWV.ui.setAllVisible(true); });
     document.getElementById('btn-hide-all').addEventListener('click', function() { window.UWV.ui.setAllVisible(false); });
+    document.getElementById('btn-type-editor').addEventListener('click', window.UWV.ui.openTypeNamesEditor);
     document.getElementById('btn-export').addEventListener('click', window.UWV.ui.exportData);
     document.getElementById('btn-import').addEventListener('click', function() { document.getElementById('file-import').click(); });
     document.getElementById('file-import').addEventListener('change', window.UWV.ui.importData);

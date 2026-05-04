@@ -5,6 +5,7 @@
   'use strict';
 
   const STORAGE_KEY = 'uwv-lang';
+  const CUSTOM_TYPE_NAMES_KEY = 'uwv-custom-typeNames';
   let currentLocale = 'zh';
   let locales = { zh: null, en: null };
 
@@ -54,9 +55,28 @@
     return val;
   }
 
-  function getTypeNames() {
+  function loadCustomTypeNames() {
+    try {
+      const raw = localStorage.getItem(CUSTOM_TYPE_NAMES_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveCustomTypeNames(obj) {
+    localStorage.setItem(CUSTOM_TYPE_NAMES_KEY, JSON.stringify(obj));
+  }
+
+  function getDefaultTypeNames() {
     const locale = locales[currentLocale];
     return (locale && locale.typeNames) || {};
+  }
+
+  function getTypeNames() {
+    const defaults = getDefaultTypeNames();
+    const custom = loadCustomTypeNames();
+    return Object.assign({}, defaults, custom);
   }
 
   async function setLocale(lang) {
@@ -129,6 +149,9 @@
     setLocale: setLocale,
     getLocale: getLocale,
     getTypeNames: getTypeNames,
+    getDefaultTypeNames: getDefaultTypeNames,
+    loadCustomTypeNames: loadCustomTypeNames,
+    saveCustomTypeNames: saveCustomTypeNames,
     toggleLanguage: toggleLanguage,
     applyToDOM: applyToDOM
   };

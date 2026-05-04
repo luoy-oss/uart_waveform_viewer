@@ -88,58 +88,74 @@
       drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
     }
 
-    // Crosshair: locked (solid) or hover (dashed)
-    var crosshairX = -1;
-    var crosshairLocked = false;
-    if (s.lockedX >= 0) {
-      crosshairX = s.lockedX;
-      crosshairLocked = true;
-    } else if (s.mouseX >= pad.left && s.mouseX <= pad.left + plotW &&
-               s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
-      crosshairX = s.mouseX;
-    }
-    if (crosshairX >= pad.left && crosshairX <= pad.left + plotW) {
-      // Find nearest data point index
-      var xFrac = (crosshairX - pad.left) / plotW;
-      var crossIdx = Math.round(xStart + xFrac * (xEnd - xStart));
-      crossIdx = Math.max(0, Math.min(crossIdx, dataLen - 1));
+    // --- Helper: draw a crosshair + data points at a given X position ---
+    function drawCrosshairAt(cx, locked, alpha) {
+      if (cx < pad.left || cx > pad.left + plotW) return;
+      var xFrac = (cx - pad.left) / plotW;
+      var idx = Math.round(xStart + xFrac * (xEnd - xStart));
+      idx = Math.max(0, Math.min(idx, dataLen - 1));
+      var sx = pad.left + (idx - xStart) / (xEnd - xStart) * plotW;
 
-      // Snap crosshair X to the actual data point position
-      var snappedX = pad.left + (crossIdx - xStart) / (xEnd - xStart) * plotW;
-      // Store snapped position for data panel and click handler
-      s._snappedIdx = crossIdx;
-      s._snappedX = snappedX;
-
-      ctx.strokeStyle = crosshairLocked ? 'rgba(74,144,217,0.8)' : window.UWV.CROSSHAIR_COLOR;
-      ctx.lineWidth = crosshairLocked ? 1.5 : 1;
-      if (!crosshairLocked) ctx.setLineDash([4, 4]);
+      // Vertical line
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = locked ? 'rgba(74,144,217,0.9)' : 'rgba(74,144,217,0.5)';
+      ctx.lineWidth = locked ? 1.5 : 1;
+      if (!locked) ctx.setLineDash([4, 4]);
       ctx.beginPath();
-      ctx.moveTo(snappedX, pad.top);
-      ctx.lineTo(snappedX, pad.top + plotH);
+      ctx.moveTo(sx, pad.top);
+      ctx.lineTo(sx, pad.top + plotH);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Draw data point markers at snapped position
-      if (crossIdx >= 0) {
-        for (var ci = 0; ci < visibleChannels.length; ci++) {
-          var ch = visibleChannels[ci];
-          if (crossIdx < ch.data.length) {
-            var dy = pad.top + plotH - (ch.data[crossIdx] - s.yMin) / (s.yMax - s.yMin) * plotH;
-            ctx.fillStyle = ch.color;
-            ctx.beginPath();
-            ctx.arc(snappedX, dy, crosshairLocked ? 4 : 3, 0, Math.PI * 2);
-            ctx.fill();
-            if (crosshairLocked) {
-              ctx.strokeStyle = '#fff';
-              ctx.lineWidth = 1;
-              ctx.stroke();
-            }
+      // Data point markers
+      for (var ci = 0; ci < visibleChannels.length; ci++) {
+        var ch = visibleChannels[ci];
+        if (idx < ch.data.length) {
+          var dy = pad.top + plotH - (ch.data[idx] - s.yMin) / (s.yMax - s.yMin) * plotH;
+          ctx.fillStyle = ch.color;
+          ctx.beginPath();
+          ctx.arc(sx, dy, locked ? 4 : 3, 0, Math.PI * 2);
+          ctx.fill();
+          if (locked) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.stroke();
           }
         }
+      }
+      ctx.restore();
+      return { idx: idx, sx: sx };
+    }
+
+    // Draw locked crosshair first (if any)
+    var liveResult = null;
+    if (s.lockedX >= 0) {
+      drawCrosshairAt(s.lockedX, true, 1.0);
+      s._lockedIdx = Math.round((s.lockedX - pad.left) / plotW * (xEnd - xStart) + xStart);
+      s._lockedIdx = Math.max(0, Math.min(s._lockedIdx, dataLen - 1));
+    }
+
+    // Draw live hover crosshair (always when mouse is in plot area)
+    var liveMx = s.mouseX;
+    if (liveMx >= pad.left && liveMx <= pad.left + plotW &&
+        s.mouseY >= pad.top && s.mouseY <= pad.top + plotH) {
+      var liveAlpha = s.lockedX >= 0 ? 0.35 : 1.0;
+      liveResult = drawCrosshairAt(liveMx, false, liveAlpha);
+      if (liveResult) {
+        s._snappedIdx = liveResult.idx;
+        s._snappedX = liveResult.sx;
       }
     } else {
       s._snappedIdx = -1;
       s._snappedX = -1;
+    }
+
+    // When not locked, use live as the primary snapped value
+    if (s.lockedX < 0 && liveResult) {
+      // already set above
+    } else if (s.lockedX >= 0) {
+      // Keep locked index for data panel primary display
     }
 
     // Selection overlay (left-click drag)
@@ -159,11 +175,15 @@
 
     ctx.restore();
 
-    // Update sidebar values
+    // Update sidebar values (only for visible channels)
     for (const ch of s.channels) {
       const valEl = document.getElementById('val-' + ch.id);
-      if (valEl && ch.data.length > 0) {
+      if (!valEl) continue;
+      const group = s.typeGroups[ch.type];
+      if (ch.visible && group && group.visible && ch.data.length > 0) {
         valEl.textContent = ch.data[ch.data.length - 1].toFixed(3);
+      } else {
+        valEl.textContent = '--';
       }
     }
 

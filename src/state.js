@@ -54,6 +54,9 @@
     lockedX: -1,
     lockedMouseX: -1,
     lockedMouseY: -1,
+    _lockedIdx: -1,
+    _snappedIdx: -1,
+    _snappedX: -1,
 
     // X scroll fixed (disable auto X tracking during drag)
     xScrollFixed: false,
