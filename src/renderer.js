@@ -550,9 +550,10 @@
   }
 
   function drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, yMin, yMax) {
+    const s = getState();
     const data = getSmoothedData(ch);
     ctx.strokeStyle = ch.color;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = s.lineWidth;
     ctx.beginPath();
 
     let started = false;

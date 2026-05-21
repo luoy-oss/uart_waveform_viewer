@@ -81,6 +81,13 @@
       window.UWV.state.resetOnZoom = e.target.checked;
     });
 
+    // Line width control
+    document.getElementById('input-line-width').addEventListener('input', function(e) {
+      var val = parseFloat(e.target.value);
+      window.UWV.state.lineWidth = val;
+      document.getElementById('txt-line-width').textContent = val.toFixed(1);
+    });
+
     // Canvas events
     canvas.addEventListener('wheel', window.UWV.ui.onWheel, { passive: false });
     canvas.addEventListener('mousedown', window.UWV.ui.onMouseDown);
@@ -102,9 +109,13 @@
         e.preventDefault();
         window.UWV.ui.redo();
       }
-      // ESC = dismiss locked crosshair
+      // ESC = dismiss locked crosshair or close hint panel
       if (e.key === 'Escape') {
-        window.UWV.ui.dismissLockedCrosshair();
+        if (hintPanel && hintPanel.classList.contains('visible')) {
+          hintPanel.classList.remove('visible');
+        } else {
+          window.UWV.ui.dismissLockedCrosshair();
+        }
       }
     });
 
@@ -113,7 +124,8 @@
     var hintPanel = document.getElementById('hint-panel');
     var hintClose = document.getElementById('hint-close');
     if (hintToggle && hintPanel) {
-      hintToggle.addEventListener('click', function() {
+      hintToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
         hintPanel.classList.toggle('visible');
       });
     }
@@ -122,6 +134,14 @@
         hintPanel.classList.remove('visible');
       });
     }
+    // 点击 hint-panel 外部区域关闭
+    document.addEventListener('click', function(e) {
+      if (hintPanel && hintPanel.classList.contains('visible')) {
+        if (!hintPanel.contains(e.target) && e.target !== hintToggle) {
+          hintPanel.classList.remove('visible');
+        }
+      }
+    });
 
     // Stats timer
     setInterval(function() {
