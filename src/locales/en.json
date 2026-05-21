@@ -45,7 +45,7 @@
   "linesPerSec": "lines/s",
   "totalLines": "Lines",
   "parseErrors": "Errors",
-  "bufferPoints": "Buffer",
+  "bufferPoints": "Visible/Total",
   "showHideTip": "Show/Hide all channels of this type",
   "selectPortAlert": "Please click \"Select Port\" to choose a serial device first",
   "selectPortFailed": "Failed to select port",

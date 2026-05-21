@@ -45,7 +45,7 @@
   "linesPerSec": "行/秒",
   "totalLines": "总行数",
   "parseErrors": "解析错误",
-  "bufferPoints": "缓冲点数",
+  "bufferPoints": "显示/总点数",
   "showHideTip": "显示/隐藏该类型所有通道",
   "selectPortAlert": "请先点击[选择串口]选择一个串口设备",
   "selectPortFailed": "选择端口失败",

@@ -81,7 +81,7 @@
       }
     }
 
-    document.getElementById('txt-point-count').textContent = dataLen;
+    document.getElementById('txt-point-count').textContent = dataLen + ' / ' + s.totalPoints;
 
     // Render minimap
     if (s.showMinimap && minimapCanvas && minimapCtx) {
@@ -467,7 +467,16 @@
     minimapCtx.fillRect(vx1, mPad, vx2 - vx1, mPlotH);
   }
 
+  function formatTime(ms) {
+    if (ms < 1000) return ms.toFixed(0) + 'ms';
+    if (ms < 60000) return (ms / 1000).toFixed(2) + 's';
+    var minutes = Math.floor(ms / 60000);
+    var secs = ((ms % 60000) / 1000).toFixed(1);
+    return minutes + 'm' + secs + 's';
+  }
+
   function drawGrid(pad, plotW, plotH, xStart, xEnd, yMin, yMax) {
+    var s = getState();
     ctx.strokeStyle = window.UWV.GRID_COLOR;
     ctx.lineWidth = 1;
     ctx.fillStyle = window.UWV.GRID_TEXT_COLOR;
@@ -509,12 +518,35 @@
       ctx.moveTo(px, pad.top);
       ctx.lineTo(px, pad.top + plotH);
       ctx.stroke();
-      ctx.fillText(x.toString(), px, pad.top + plotH + 4);
+      var label;
+      if (s.timeUnitEnabled) {
+        var timeMs;
+        if (s.resetOnZoom) {
+          // 相对时间：从当前视图起始点开始计算
+          timeMs = (x - xStart) * s.sampleIntervalMs;
+        } else {
+          // 绝对时间：从数据起始点开始计算
+          timeMs = x * s.sampleIntervalMs;
+        }
+        label = formatTime(timeMs);
+      } else {
+        label = x.toString();
+      }
+      ctx.fillText(label, px, pad.top + plotH + 4);
     }
 
     // Border
     ctx.strokeStyle = window.UWV.AXIS_COLOR;
     ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+
+    // X轴单位标注（时间模式下显示）
+    if (s.timeUnitEnabled) {
+      ctx.fillStyle = window.UWV.GRID_TEXT_COLOR;
+      ctx.font = '9px Consolas, monospace';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'top';
+      ctx.fillText('(ms)', pad.left + plotW, pad.top + plotH + 4);
+    }
   }
 
   function drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, yMin, yMax) {

@@ -116,6 +116,12 @@
         <option value="sg">S-G</option>
       </select>
       <input type="number" id="input-smooth" value="5" min="2" max="50" step="1">
+      <div class="separator"></div>
+      <button id="btn-time-unit" data-i18n-title="timeUnitTip">点数</button>
+      <label data-i18n="sampleInterval">间隔</label>
+      <input type="number" id="input-interval" value="5" min="0.1" max="100000" step="1" style="width:50px">
+      <label>ms</label>
+      <label><input type="checkbox" id="chk-reset-time" checked> <span data-i18n="resetTimeOnZoom">时间归零</span></label>
       <label data-i18n="yRange">Y范围</label>
       <input type="number" id="input-ymin" value="-10" step="0.1" style="width:65px" title="Y min">
       <label>~</label>

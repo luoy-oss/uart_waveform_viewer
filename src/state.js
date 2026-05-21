@@ -29,6 +29,7 @@
     typeGroups: {},
     typeOrder: [],
     maxPoints: 500,
+    totalPoints: 0,
     autoY: true,
     yMin: -10,
     yMax: 10,
@@ -77,6 +78,13 @@
 
     // Split view: 'off', 'channel', 'type'
     splitView: 'off',
+
+    // Time axis
+    timeUnitEnabled: false, // true 时横轴显示时间，false 时显示点数
+    resetOnZoom: true,      // true 时缩放后时间从 0 开始，false 时保持绝对时间
+    sampleIntervalMs: 5,    // 每点采样间隔（毫秒），默认 5ms/点
+    xTimeOrigin: 0,         // 当前视图起始点的绝对时间偏移（ms）
+    _lastAbsoluteTimeOrigin: 0, // 缩放前的绝对时间起点，用于 resetOnZoom 计算
 
     // Stats
     lineCount: 0,

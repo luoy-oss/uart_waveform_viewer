@@ -178,6 +178,7 @@
     for (const ch of s.channels) ch.data = [];
     s.lineCount = 0;
     s.errorCount = 0;
+    s.totalPoints = 0;
     s.xScroll = 0;
     s.historyStack = [];
     s.historyIndex = -1;
@@ -288,6 +289,14 @@
     updateDataPanel();
   }
 
+  function formatTimeShort(ms) {
+    if (ms < 1000) return ms.toFixed(0) + ' ms';
+    if (ms < 60000) return (ms / 1000).toFixed(2) + ' s';
+    var minutes = Math.floor(ms / 60000);
+    var secs = ((ms % 60000) / 1000).toFixed(1);
+    return minutes + 'm ' + secs + 's';
+  }
+
   function updateDataPanel() {
     const s = getState();
     const panel = document.getElementById('data-panel');
@@ -330,7 +339,19 @@
       return;
     }
 
-    let html = '<div class="data-panel-title">#' + idx + '</div>';
+    var titleText;
+    if (s.timeUnitEnabled) {
+      var timeMs;
+      if (s.resetOnZoom) {
+        timeMs = (idx - xr.xStart) * s.sampleIntervalMs;
+      } else {
+        timeMs = idx * s.sampleIntervalMs;
+      }
+      titleText = formatTimeShort(timeMs);
+    } else {
+      titleText = '#' + idx;
+    }
+    let html = '<div class="data-panel-title">' + titleText + '</div>';
     let count = 0;
     for (const ch of visibleChannels) {
       var sd = window.UWV.renderer.getSmoothedData(ch);

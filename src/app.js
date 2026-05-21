@@ -67,6 +67,20 @@
       e.target.value = window.UWV.state.smoothParam;
     });
 
+    // Time axis controls
+    document.getElementById('btn-time-unit').addEventListener('click', function() {
+      var s = window.UWV.state;
+      s.timeUnitEnabled = !s.timeUnitEnabled;
+      this.textContent = s.timeUnitEnabled ? '时间' : '点数';
+    });
+    document.getElementById('input-interval').addEventListener('change', function(e) {
+      window.UWV.state.sampleIntervalMs = Math.max(0.1, parseFloat(e.target.value) || 5);
+      e.target.value = window.UWV.state.sampleIntervalMs;
+    });
+    document.getElementById('chk-reset-time').addEventListener('change', function(e) {
+      window.UWV.state.resetOnZoom = e.target.checked;
+    });
+
     // Canvas events
     canvas.addEventListener('wheel', window.UWV.ui.onWheel, { passive: false });
     canvas.addEventListener('mousedown', window.UWV.ui.onMouseDown);

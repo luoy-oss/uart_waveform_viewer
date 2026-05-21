@@ -65,9 +65,7 @@
       }
 
       ch.data.push(values[i]);
-      if (ch.data.length > s.maxPoints * 3) {
-        ch.data.splice(0, ch.data.length - s.maxPoints * 2);
-      }
+      s.totalPoints++;
     }
 
     s.lineCount++;
