@@ -65,6 +65,7 @@
     // Data panel
     showDataPanel: true,
     dataPanelMinimized: false,
+    dataPanelFontSize: 11,
 
     // Undo/redo history
     historyStack: [],

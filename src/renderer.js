@@ -35,7 +35,7 @@
     ctx.fillStyle = s.bgColor;
     ctx.fillRect(0, 0, w, h);
 
-    const pad = { top: 20, bottom: 30, left: 60, right: 15 };
+    const pad = { top: 20, bottom: 30, left: 60 + Math.max(0, (s.analysisFontSize - 10) * 5), right: 15 };
     const plotW = w - pad.left - pad.right;
     const plotH = h - pad.top - pad.bottom;
     if (plotW < 10 || plotH < 10) return;
@@ -67,6 +67,8 @@
     } else {
       renderOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
     }
+    // 在 clip 区域外绘制 Ref 标签
+    drawRefLineLabels(s, pad, plotW, plotH, s.yMin, s.yMax);
 
     // Update sidebar values (only for visible channels)
     for (const ch of s.channels) {
@@ -452,21 +454,13 @@
       ctx.lineTo(px2, pyMean);
       ctx.stroke();
       ctx.setLineDash([]);
-      // 均值标签
-      ctx.fillStyle = ch.color;
-      ctx.globalAlpha = 0.9;
-      ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      var midPx = (px1 + px2) / 2;
-      ctx.fillText('M:' + stats.mean.toFixed(2), midPx, pyMean - 2);
       ctx.globalAlpha = 1;
 
       // 最大值标记
       if (stats.maxIdx >= xStart && stats.maxIdx <= xEnd) {
         var pmx = pad.left + (stats.maxIdx - xStart) / (xEnd - xStart) * plotW;
         var pmy = pad.top + plotH - (stats.max - s.yMin) / (s.yMax - s.yMin) * plotH;
-        ctx.fillStyle = ch.color;
+        ctx.fillStyle = s.analysisColor || '#fff';
         ctx.beginPath();
         ctx.moveTo(pmx - 4, pmy - 6);
         ctx.lineTo(pmx + 4, pmy - 6);
@@ -484,7 +478,7 @@
       if (stats.minIdx >= xStart && stats.minIdx <= xEnd) {
         var pmn = pad.left + (stats.minIdx - xStart) / (xEnd - xStart) * plotW;
         var pmny = pad.top + plotH - (stats.min - s.yMin) / (s.yMax - s.yMin) * plotH;
-        ctx.fillStyle = ch.color;
+        ctx.fillStyle = s.analysisColor || '#fff';
         ctx.beginPath();
         ctx.moveTo(pmn - 4, pmny + 6);
         ctx.lineTo(pmn + 4, pmny + 6);
@@ -502,58 +496,77 @@
       var midX = (px1 + px2) / 2;
       var topY = pad.top + plotH - (stats.max - s.yMin) / (s.yMax - s.yMin) * plotH;
       var botY = pad.top + plotH - (stats.min - s.yMin) / (s.yMax - s.yMin) * plotH;
-      ctx.strokeStyle = ch.color;
-      ctx.globalAlpha = 0.5;
+      // 总范围标注 - 在区域左侧显示
+      var annoColor = s.analysisColor || '#fff';
+      ctx.strokeStyle = annoColor;
+      ctx.globalAlpha = 0.6;
       ctx.lineWidth = 1;
-      var arrowX = px2 + 18;
+      var arrowX = px1 - 14;
       ctx.beginPath();
       ctx.moveTo(arrowX, topY);
       ctx.lineTo(arrowX, botY);
       ctx.stroke();
-      // 上箭头
       ctx.beginPath();
       ctx.moveTo(arrowX - 3, topY + 4);
       ctx.lineTo(arrowX, topY);
       ctx.lineTo(arrowX + 3, topY + 4);
       ctx.stroke();
-      // 下箭头
       ctx.beginPath();
       ctx.moveTo(arrowX - 3, botY - 4);
       ctx.lineTo(arrowX, botY);
       ctx.lineTo(arrowX + 3, botY - 4);
       ctx.stroke();
-      // 范围值
-      ctx.fillStyle = ch.color;
-      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = annoColor;
+      ctx.globalAlpha = 0.9;
       ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-      ctx.textAlign = 'left';
+      ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      var rangeLabel = 'Δ' + stats.range.toFixed(2);
-      ctx.fillText(rangeLabel, arrowX + 5, (topY + botY) / 2);
+      ctx.fillText('Δ' + stats.range.toFixed(2), arrowX - 4, (topY + botY) / 2);
+
+      // 均值→最大值偏差 - 区域左侧
+      var upDiff = stats.max - stats.mean;
+      ctx.fillStyle = annoColor;
+      ctx.globalAlpha = 0.9;
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+' + upDiff.toFixed(2), arrowX - 4, (pyMean + topY) / 2);
+
+      // 均值→最小值偏差 - 区域左侧
+      var downDiff = stats.mean - stats.min;
+      ctx.fillText('-' + downDiff.toFixed(2), arrowX - 4, (pyMean + botY) / 2);
       ctx.globalAlpha = 1;
     }
 
-    // 绘制用户设置的参考线
+    // 绘制用户设置的参考线（线本身保留在 clip 内）
     if (s.showRefLine && s.refLineValue !== null) {
       var refY = pad.top + plotH - (s.refLineValue - s.yMin) / (s.yMax - s.yMin) * plotH;
       if (refY >= pad.top && refY <= pad.top + plotH) {
         ctx.strokeStyle = '#f39c12';
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.setLineDash([8, 4]);
         ctx.beginPath();
         ctx.moveTo(pad.left, refY);
         ctx.lineTo(pad.left + plotW, refY);
         ctx.stroke();
         ctx.setLineDash([]);
-        // 在左侧纵轴标注 Ref 值
-        ctx.fillStyle = '#f39c12';
-        ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Ref:' + s.refLineValue.toFixed(2), pad.left - 5, refY);
       }
     }
 
+    ctx.restore();
+  }
+
+  // 在 clip 区域外绘制 Ref 标签（防止被裁剪）
+  function drawRefLineLabels(s, pad, plotW, plotH, yMin, yMax) {
+    if (!s.showRefLine || s.refLineValue === null) return;
+    var refY = pad.top + plotH - (s.refLineValue - yMin) / (yMax - yMin) * plotH;
+    if (refY < pad.top || refY > pad.top + plotH) return;
+    // 左侧 Y 轴标注
+    ctx.save();
+    ctx.fillStyle = '#f39c12';
+    ctx.font = 'bold ' + s.analysisFontSize + 'px Consolas, monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Ref:' + s.refLineValue.toFixed(2), pad.left - 5, refY);
     ctx.restore();
   }
 

@@ -47,8 +47,12 @@
     document.getElementById('theme-close').addEventListener('click', window.UWV.ui.toggleThemePanel);
     document.getElementById('data-panel-minimize').addEventListener('click', window.UWV.ui.toggleDataPanelMinimize);
 
-    // Init data panel drag
+    // Init data panel drag and resize
     window.UWV.ui.initDataPanelDrag();
+    window.UWV.ui.initDataPanelResize();
+    // 初始化面板字号 CSS 变量
+    document.getElementById('data-panel').style.setProperty('--panel-font-size', window.UWV.state.dataPanelFontSize + 'px');
+    window.UWV.ui.applyDataPanelFontSize(window.UWV.state.dataPanelFontSize);
 
     document.getElementById('input-points').addEventListener('change', function(e) {
       window.UWV.ui.pushHistory();
@@ -108,6 +112,14 @@
     });
     document.getElementById('chk-show-region').addEventListener('change', function(e) {
       window.UWV.state.analysisShowRegion = e.target.checked;
+    });
+
+    // Data panel font size
+    document.getElementById('input-panel-font').addEventListener('input', function(e) {
+      var val = parseInt(e.target.value);
+      window.UWV.state.dataPanelFontSize = val;
+      document.getElementById('txt-panel-font').textContent = val;
+      window.UWV.ui.applyDataPanelFontSize(val);
     });
 
     // Theme color controls

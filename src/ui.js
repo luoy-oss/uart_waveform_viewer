@@ -251,10 +251,11 @@
 
   // --- 获取绘图区域参数 ---
   function getPlotParams() {
+    const s = window.UWV.state;
     const canvas = document.getElementById('waveform-canvas');
     const w = canvas.width / (window.devicePixelRatio || 1);
     const h = canvas.height / (window.devicePixelRatio || 1);
-    const pad = { top: 20, bottom: 30, left: 60, right: 15 };
+    const pad = { top: 20, bottom: 30, left: 60 + Math.max(0, (s.analysisFontSize - 10) * 5), right: 15 };
     return { w: w, h: h, pad: pad, plotW: w - pad.left - pad.right, plotH: h - pad.top - pad.bottom };
   }
 
@@ -384,6 +385,8 @@
           bodyHtml += '<div class="stats-row"><span>最大值</span><span>' + st.max.toFixed(4) + '</span></div>';
           bodyHtml += '<div class="stats-row"><span>均值</span><span>' + st.mean.toFixed(4) + '</span></div>';
           bodyHtml += '<div class="stats-row"><span>波动范围</span><span>' + st.range.toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row dim"><span>均值→最大值</span><span>+' + (st.max - st.mean).toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row dim"><span>均值→最小值</span><span>-' + (st.mean - st.min).toFixed(4) + '</span></div>';
           bodyHtml += '<div class="stats-row dim"><span>采样点数</span><span>' + st.count + '</span></div>';
         }
         if (s.showRefLine && s.refLineValue !== null) {
@@ -439,6 +442,40 @@
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
+  }
+
+  // --- Data panel resize ---
+  function initDataPanelResize() {
+    var handle = document.getElementById('data-panel-resize');
+    var panel = document.getElementById('data-panel');
+    if (!handle || !panel) return;
+
+    handle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var startW = panel.offsetWidth;
+      var startH = panel.offsetHeight;
+
+      function onMove(ev) {
+        panel.style.width = Math.max(120, startW + ev.clientX - startX) + 'px';
+        panel.style.height = Math.max(60, startH + ev.clientY - startY) + 'px';
+        panel.style.maxWidth = 'none';
+        panel.style.maxHeight = 'none';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  }
+
+  function applyDataPanelFontSize(size) {
+    var panel = document.getElementById('data-panel');
+    if (panel) panel.style.setProperty('--panel-font-size', size + 'px');
   }
 
   // --- 鼠标交互 ---
@@ -1058,6 +1095,8 @@
     toggleDataPanel: toggleDataPanel,
     toggleDataPanelMinimize: toggleDataPanelMinimize,
     initDataPanelDrag: initDataPanelDrag,
+    initDataPanelResize: initDataPanelResize,
+    applyDataPanelFontSize: applyDataPanelFontSize,
     toggleAnalyzeMode: toggleAnalyzeMode,
     clearAnalysis: clearAnalysis,
     computeAnalysisStats: computeAnalysisStats,
