@@ -305,19 +305,23 @@
     const s = getState();
     const panel = document.getElementById('data-panel');
     if (!panel) return;
+    var titleEl = document.getElementById('data-panel-title-text');
+    var bodyEl = document.getElementById('data-panel-body');
 
     const mx = s.lockedX >= 0 ? s.lockedMouseX : s.mouseX;
     const my = s.lockedX >= 0 ? s.lockedMouseY : s.mouseY;
 
     if (mx < 0 || my < 0) {
-      panel.innerHTML = '<div class="data-panel-title">' + t('dataPanelEmpty') + '</div>';
+      if (titleEl) titleEl.textContent = t('dataPanelEmpty');
+      if (bodyEl) bodyEl.innerHTML = '';
       return;
     }
 
     const p = getPlotParams();
     if (mx < p.pad.left || mx > p.pad.left + p.plotW || my < p.pad.top || my > p.pad.top + p.plotH) {
       if (s.lockedX < 0) {
-        panel.innerHTML = '<div class="data-panel-title">' + t('dataPanelEmpty') + '</div>';
+        if (titleEl) titleEl.textContent = t('dataPanelEmpty');
+        if (bodyEl) bodyEl.innerHTML = '';
         return;
       }
     }
@@ -325,7 +329,6 @@
     const visibleChannels = getVisibleChannels();
     const xr = getXRange();
 
-    // When locked, use locked index; otherwise use live snapped index
     var idx;
     if (s.lockedX >= 0 && s._lockedIdx >= 0) {
       idx = s._lockedIdx;
@@ -339,7 +342,8 @@
     idx = Math.max(0, Math.min(idx, xr.dataLen - 1));
 
     if (idx < 0 || idx >= xr.dataLen) {
-      panel.innerHTML = '<div class="data-panel-title">' + t('dataPanelEmpty') + '</div>';
+      if (titleEl) titleEl.textContent = t('dataPanelEmpty');
+      if (bodyEl) bodyEl.innerHTML = '';
       return;
     }
 
@@ -355,37 +359,39 @@
     } else {
       titleText = '#' + idx;
     }
-    let html = '<div class="data-panel-title">' + titleText + '</div>';
-    let count = 0;
+    if (titleEl) titleEl.textContent = titleText;
+
+    var bodyHtml = '';
+    var count = 0;
     for (const ch of visibleChannels) {
       var sd = window.UWV.renderer.getSmoothedData(ch);
       if (idx < sd.length) {
-        html += '<div class="data-panel-row"><span class="data-panel-dot" style="background:' + ch.color + '"></span><span class="data-panel-name">' + ch.name + '</span><span class="data-panel-val">' + sd[idx].toFixed(4) + '</span></div>';
+        bodyHtml += '<div class="data-panel-row"><span class="data-panel-dot" style="background:' + ch.color + '"></span><span class="data-panel-name">' + ch.name + '</span><span class="data-panel-val">' + sd[idx].toFixed(4) + '</span></div>';
         count++;
       }
     }
     if (count === 0) {
-      panel.innerHTML = '<div class="data-panel-title">' + t('dataPanelEmpty') + '</div>';
+      if (titleEl) titleEl.textContent = t('dataPanelEmpty');
+      if (bodyEl) bodyEl.innerHTML = '';
     } else {
-      // 分析模式下附加统计信息
       if (s.analyzeMode && s.analysisStats) {
-        html += '<div style="border-top:1px solid #1a4080;margin-top:6px;padding-top:6px;font-size:10px">';
+        bodyHtml += '<div class="data-panel-stats">';
         for (const ch of visibleChannels) {
           var st = s.analysisStats[ch.id];
           if (!st || st.count < 2) continue;
-          html += '<div style="color:' + ch.color + ';font-weight:bold;margin-top:4px">' + ch.name + '</div>';
-          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>最小值</span><span>' + st.min.toFixed(4) + '</span></div>';
-          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>最大值</span><span>' + st.max.toFixed(4) + '</span></div>';
-          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>均值</span><span>' + st.mean.toFixed(4) + '</span></div>';
-          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>波动范围</span><span>' + st.range.toFixed(4) + '</span></div>';
-          html += '<div style="display:flex;justify-content:space-between;padding-left:6px;color:#888"><span>采样点数</span><span>' + st.count + '</span></div>';
+          bodyHtml += '<div class="stats-ch-title" style="color:' + ch.color + '">' + ch.name + '</div>';
+          bodyHtml += '<div class="stats-row"><span>最小值</span><span>' + st.min.toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row"><span>最大值</span><span>' + st.max.toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row"><span>均值</span><span>' + st.mean.toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row"><span>波动范围</span><span>' + st.range.toFixed(4) + '</span></div>';
+          bodyHtml += '<div class="stats-row dim"><span>采样点数</span><span>' + st.count + '</span></div>';
         }
         if (s.showRefLine && s.refLineValue !== null) {
-          html += '<div style="border-top:1px solid #1a4080;margin-top:4px;padding-top:4px;color:#f39c12">参考中值: ' + s.refLineValue.toFixed(4) + ' <span style="color:#888;font-size:9px">(Ctrl+点击图设置)</span></div>';
+          bodyHtml += '<div class="stats-ref">参考中值: ' + s.refLineValue.toFixed(4) + ' <span style="color:#888;font-size:9px">(Ctrl+点击设置)</span></div>';
         }
-        html += '</div>';
+        bodyHtml += '</div>';
       }
-      panel.innerHTML = html;
+      if (bodyEl) bodyEl.innerHTML = bodyHtml;
     }
   }
 
@@ -396,6 +402,43 @@
     if (btn) btn.className = s.showDataPanel ? 'active' : '';
     var dp = document.getElementById('data-panel');
     if (dp) dp.style.display = s.showDataPanel ? 'block' : 'none';
+  }
+
+  function toggleDataPanelMinimize() {
+    const s = getState();
+    s.dataPanelMinimized = !s.dataPanelMinimized;
+    var dp = document.getElementById('data-panel');
+    if (dp) dp.classList.toggle('minimized', s.dataPanelMinimized);
+    var btn = document.getElementById('data-panel-minimize');
+    if (btn) btn.textContent = s.dataPanelMinimized ? '□' : '─';
+  }
+
+  // --- Data panel drag ---
+  function initDataPanelDrag() {
+    var dragHandle = document.getElementById('data-panel-drag');
+    var panel = document.getElementById('data-panel');
+    if (!dragHandle || !panel) return;
+
+    dragHandle.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      var startX = e.clientX;
+      var startY = e.clientY;
+      var startLeft = parseInt(panel.style.left) || panel.offsetLeft;
+      var startTop = parseInt(panel.style.top) || panel.offsetTop;
+
+      function onMove(ev) {
+        panel.style.left = (startLeft + ev.clientX - startX) + 'px';
+        panel.style.top = (startTop + ev.clientY - startY) + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
   }
 
   // --- 鼠标交互 ---
@@ -579,6 +622,36 @@
     if (mc) mc.style.display = s.showMinimap ? 'block' : 'none';
   }
 
+  // --- Sidebar collapse ---
+  function toggleSidebar() {
+    const s = getState();
+    s.sidebarCollapsed = !s.sidebarCollapsed;
+    var sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.classList.toggle('collapsed', s.sidebarCollapsed);
+    var btn = document.getElementById('btn-sidebar-toggle');
+    if (btn) btn.textContent = s.sidebarCollapsed ? '▶' : '◀';
+  }
+
+  // --- Theme panel ---
+  function toggleThemePanel() {
+    var panel = document.getElementById('theme-panel');
+    if (panel) panel.classList.toggle('visible');
+  }
+
+  function applyTheme() {
+    const s = getState();
+    var t = s.theme;
+    var root = document.documentElement;
+    root.style.setProperty('--panel-bg', t.panelBg);
+    root.style.setProperty('--status-bg', t.statusBarBg);
+    root.style.setProperty('--text-color', t.textColor);
+    root.style.setProperty('--accent', t.accentColor);
+    root.style.setProperty('--checkbox-accent', t.accentColor);
+    // 数据面板背景
+    var dp = document.getElementById('data-panel');
+    if (dp) dp.style.background = t.panelBg;
+  }
+
   // --- Analysis mode ---
   function toggleAnalyzeMode() {
     const s = getState();
@@ -587,11 +660,20 @@
     if (btn) btn.className = s.analyzeMode ? 'active' : '';
     var clearBtn = document.getElementById('btn-clear-analysis');
     if (clearBtn) clearBtn.style.display = s.analyzeMode ? '' : 'none';
+    // 分析模式下自动打开数据面板
+    if (s.analyzeMode && !s.showDataPanel) {
+      toggleDataPanel();
+    }
     if (!s.analyzeMode) {
       s.analyzeRange = null;
       s.analysisStats = null;
       s.showRefLine = false;
       s.refLineValue = null;
+      s.dataPanelMinimized = false;
+      var dp = document.getElementById('data-panel');
+      if (dp) dp.classList.remove('minimized');
+      var minBtn = document.getElementById('data-panel-minimize');
+      if (minBtn) minBtn.textContent = '─';
       updateDataPanel();
     }
   }
@@ -970,7 +1052,12 @@
     redo: redo,
     updateUndoRedoButtons: updateUndoRedoButtons,
     toggleMinimap: toggleMinimap,
+    toggleSidebar: toggleSidebar,
+    toggleThemePanel: toggleThemePanel,
+    applyTheme: applyTheme,
     toggleDataPanel: toggleDataPanel,
+    toggleDataPanelMinimize: toggleDataPanelMinimize,
+    initDataPanelDrag: initDataPanelDrag,
     toggleAnalyzeMode: toggleAnalyzeMode,
     clearAnalysis: clearAnalysis,
     computeAnalysisStats: computeAnalysisStats,

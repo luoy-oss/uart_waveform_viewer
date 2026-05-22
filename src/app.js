@@ -42,6 +42,13 @@
     document.getElementById('btn-split').addEventListener('click', window.UWV.ui.toggleSplitView);
     document.getElementById('btn-analyze').addEventListener('click', window.UWV.ui.toggleAnalyzeMode);
     document.getElementById('btn-clear-analysis').addEventListener('click', window.UWV.ui.clearAnalysis);
+    document.getElementById('btn-sidebar-toggle').addEventListener('click', window.UWV.ui.toggleSidebar);
+    document.getElementById('btn-theme-settings').addEventListener('click', window.UWV.ui.toggleThemePanel);
+    document.getElementById('theme-close').addEventListener('click', window.UWV.ui.toggleThemePanel);
+    document.getElementById('data-panel-minimize').addEventListener('click', window.UWV.ui.toggleDataPanelMinimize);
+
+    // Init data panel drag
+    window.UWV.ui.initDataPanelDrag();
 
     document.getElementById('input-points').addEventListener('change', function(e) {
       window.UWV.ui.pushHistory();
@@ -88,6 +95,42 @@
       var val = parseFloat(e.target.value);
       window.UWV.state.lineWidth = val;
       document.getElementById('txt-line-width').textContent = val.toFixed(1);
+    });
+
+    // Analysis annotation controls
+    document.getElementById('input-analysis-font').addEventListener('input', function(e) {
+      var val = parseInt(e.target.value);
+      window.UWV.state.analysisFontSize = val;
+      document.getElementById('txt-analysis-font').textContent = val;
+    });
+    document.getElementById('input-analysis-color').addEventListener('input', function(e) {
+      window.UWV.state.analysisColor = e.target.value;
+    });
+    document.getElementById('chk-show-region').addEventListener('change', function(e) {
+      window.UWV.state.analysisShowRegion = e.target.checked;
+    });
+
+    // Theme color controls
+    function setupThemeInput(id, key) {
+      document.getElementById(id).addEventListener('input', function(e) {
+        window.UWV.state.theme[key] = e.target.value;
+        window.UWV.ui.applyTheme();
+      });
+    }
+    setupThemeInput('input-panel-bg', 'panelBg');
+    setupThemeInput('input-status-bg', 'statusBarBg');
+    setupThemeInput('input-text-color', 'textColor');
+    setupThemeInput('input-accent-color', 'accentColor');
+
+    // Close theme panel on outside click
+    document.addEventListener('click', function(e) {
+      var panel = document.getElementById('theme-panel');
+      var btn = document.getElementById('btn-theme-settings');
+      if (panel && panel.classList.contains('visible')) {
+        if (!panel.contains(e.target) && e.target !== btn) {
+          panel.classList.remove('visible');
+        }
+      }
     });
 
     // Canvas events

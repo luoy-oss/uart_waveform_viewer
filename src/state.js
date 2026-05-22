@@ -64,6 +64,7 @@
 
     // Data panel
     showDataPanel: true,
+    dataPanelMinimized: false,
 
     // Undo/redo history
     historyStack: [],
@@ -91,10 +92,24 @@
 
     // Analysis mode
     analyzeMode: false,
-    analyzeRange: null,       // { startIdx, endIdx } 或 null
-    analysisStats: null,      // { chId: { min, max, mean, range }, ... }
-    refLineValue: null,       // 自定义参考中值线 Y 值 (Ch0)
+    analyzeRange: null,
+    analysisStats: null,
+    refLineValue: null,
     showRefLine: false,
+    analysisFontSize: 10,
+    analysisColor: '#ffffff',
+    analysisShowRegion: true,
+
+    // Sidebar collapsed
+    sidebarCollapsed: false,
+
+    // Theme colors (override defaults)
+    theme: {
+      panelBg: '#16213e',
+      statusBarBg: '#0f1a35',
+      textColor: '#e0e0e0',
+      accentColor: '#4a90d9',
+    },
 
     // Stats
     lineCount: 0,

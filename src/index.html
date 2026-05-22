@@ -65,6 +65,7 @@
   <!-- Sidebar -->
   <div id="sidebar">
     <div id="sidebar-header">
+      <button id="btn-sidebar-toggle" title="折叠/展开侧边栏">◀</button>
       <span data-i18n="channelList">通道列表</span>
       <div class="btns">
         <button id="btn-show-all" data-i18n="selectAll" data-i18n-title="selectAllTip">全选</button>
@@ -85,56 +86,93 @@
       <div id="minimap-container">
         <canvas id="minimap-canvas" width="220" height="100"></canvas>
       </div>
-      <div id="data-panel"><div class="data-panel-title" data-i18n="dataPanelEmpty">点击波形查看数据</div></div>
+      <div id="data-panel">
+        <div id="data-panel-header">
+          <span class="data-panel-drag-handle" id="data-panel-drag">⠿</span>
+          <span class="data-panel-title-inner" id="data-panel-title-text" data-i18n="dataPanelEmpty">点击波形查看数据</span>
+          <button id="data-panel-minimize" title="最小化">─</button>
+        </div>
+        <div id="data-panel-body"></div>
+      </div>
     </div>
     <div id="control-bar">
-      <button id="btn-auto" class="active" data-i18n="autoY" data-i18n-title="autoYTip">自动Y</button>
-      <button id="btn-auto-x" data-i18n="autoX" data-i18n-title="autoXTip">自动X</button>
+      <span class="ctrl-group-label">视图</span>
+      <button id="btn-minimap" class="active" data-i18n-title="minimapTip">Map</button>
+      <button id="btn-datapanel" class="active" data-i18n-title="dataPanelTip">Info</button>
+      <button id="btn-split" data-i18n="splitView" data-i18n-title="splitViewTip">分视图</button>
+      <button id="btn-analyze" data-i18n-title="analyzeTip">分析</button>
+      <button id="btn-clear-analysis" data-i18n-title="clearAnalysisTip" style="display:none">✕</button>
+      <div class="separator"></div>
+      <span class="ctrl-group-label">缩放</span>
+      <button id="btn-auto" class="active" data-i18n="autoY" data-i18n-title="autoYTip">Y</button>
+      <button id="btn-auto-x" data-i18n="autoX" data-i18n-title="autoXTip">X</button>
       <button id="btn-y-zoom-in" data-i18n-title="yZoomInTip">Y+</button>
       <button id="btn-y-zoom-out" data-i18n-title="yZoomOutTip">Y-</button>
       <button id="btn-x-zoom-in" data-i18n-title="xZoomInTip">X+</button>
       <button id="btn-x-zoom-out" data-i18n-title="xZoomOutTip">X-</button>
       <div class="separator"></div>
-      <button id="btn-undo" data-i18n-title="undoTip" disabled>&#x21A9;</button>
-      <button id="btn-redo" data-i18n-title="redoTip" disabled>&#x21AA;</button>
-      <div class="separator"></div>
+      <span class="ctrl-group-label">操作</span>
+      <button id="btn-undo" data-i18n-title="undoTip" disabled>↩</button>
+      <button id="btn-redo" data-i18n-title="redoTip" disabled>↪</button>
       <button id="btn-pause" data-i18n="pause">暂停</button>
       <button id="btn-clear" data-i18n="clear">清除</button>
       <div class="separator"></div>
-      <button id="btn-minimap" class="active" data-i18n-title="minimapTip">Map</button>
-      <button id="btn-datapanel" class="active" data-i18n-title="dataPanelTip">Info</button>
-      <button id="btn-split" data-i18n="splitView" data-i18n-title="splitViewTip">分视图</button>
-      <button id="btn-analyze" data-i18n-title="analyzeTip">分析</button>
-      <button id="btn-clear-analysis" data-i18n-title="clearAnalysisTip" style="display:none" title="清除分析">✕</button>
-      <div class="separator"></div>
-      <label data-i18n="displayPoints">显示点数</label>
-      <input type="number" id="input-points" value="500" min="50" max="100000" step="50">
+      <span class="ctrl-group-label">显示</span>
+      <label data-i18n="displayPoints">点数</label>
+      <input type="number" id="input-points" value="500" min="50" max="100000" step="50" title="显示点数">
       <label data-i18n="smooth">平滑</label>
-      <select id="sel-smooth">
+      <select id="sel-smooth" title="平滑算法">
         <option value="none">OFF</option>
         <option value="sma">SMA</option>
         <option value="ema">EMA</option>
         <option value="gaussian">Gauss</option>
         <option value="sg">S-G</option>
       </select>
-      <input type="number" id="input-smooth" value="5" min="2" max="50" step="1">
-      <div class="separator"></div>
+      <input type="number" id="input-smooth" value="5" min="2" max="50" step="1" style="width:40px" title="平滑窗口">
       <button id="btn-time-unit" data-i18n-title="timeUnitTip">点数</button>
-      <label data-i18n="sampleInterval">间隔</label>
-      <input type="number" id="input-interval" value="5" min="0.1" max="100000" step="1" style="width:50px">
-      <label>ms</label>
-      <label><input type="checkbox" id="chk-reset-time" checked> <span data-i18n="resetTimeOnZoom">时间归零</span></label>
+      <input type="number" id="input-interval" value="5" min="0.1" max="100000" step="1" style="width:45px" title="采样间隔(ms)">
+      <label style="font-size:10px">ms</label>
+      <label title="缩放后时间归零" style="font-size:10px"><input type="checkbox" id="chk-reset-time" checked> 归零</label>
       <div class="separator"></div>
-      <label data-i18n="lineWidth">线宽</label>
-      <input type="range" id="input-line-width" min="0.5" max="4" step="0.1" value="1.5" style="width:60px;vertical-align:middle">
-      <span id="txt-line-width" style="font-size:10px;color:#a0a0c0;min-width:24px;text-align:center">1.5</span>
-      <label data-i18n="yRange">Y范围</label>
-      <input type="number" id="input-ymin" value="-10" step="0.1" style="width:65px" title="Y min">
-      <label>~</label>
-      <input type="number" id="input-ymax" value="10" step="0.1" style="width:65px" title="Y max">
-      <div class="separator"></div>
-      <label data-i18n="background">背景</label>
-      <input type="color" id="input-bg" value="#1a1a2e">
+      <span class="ctrl-group-label">外观</span>
+      <label style="font-size:10px">线宽</label>
+      <input type="range" id="input-line-width" min="0.5" max="4" step="0.1" value="1.5" style="width:50px;vertical-align:middle">
+      <span id="txt-line-width" style="font-size:10px;color:#a0a0c0;min-width:20px;text-align:center">1.5</span>
+      <label style="font-size:10px">标注</label>
+      <input type="range" id="input-analysis-font" min="7" max="24" step="1" value="10" style="width:50px;vertical-align:middle" title="标注字号">
+      <span id="txt-analysis-font" style="font-size:10px;color:#a0a0c0;min-width:16px">10</span>
+      <input type="color" id="input-analysis-color" value="#ffffff" style="width:22px;height:18px;padding:0" title="标注颜色">
+      <label title="显示/隐藏分析区域高亮" style="font-size:10px"><input type="checkbox" id="chk-show-region" checked> 区域</label>
+      <label style="font-size:10px">Y</label>
+      <input type="number" id="input-ymin" value="-10" step="0.1" style="width:55px" title="Y min">
+      <label style="font-size:10px">~</label>
+      <input type="number" id="input-ymax" value="10" step="0.1" style="width:55px" title="Y max">
+      <label style="font-size:10px">背景</label>
+      <input type="color" id="input-bg" value="#1a1a2e" style="width:22px;height:18px;padding:0" title="波形背景色">
+      <button id="btn-theme-settings" title="更多颜色设置" style="font-size:10px;padding:2px 6px">🎨</button>
+      <div id="theme-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;border-bottom:1px solid #0f3460;font-size:11px;color:#4a90d9;font-weight:bold">
+          <span>主题颜色</span>
+          <button id="theme-close" style="background:none;border:none;color:#888;font-size:14px;cursor:pointer">&times;</button>
+        </div>
+        <div style="padding:6px 8px;font-size:10px">
+          <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+            <span style="min-width:50px">面板背景</span>
+            <input type="color" id="input-panel-bg" value="#16213e" style="width:22px;height:18px;padding:0;border:none;cursor:pointer">
+            <span style="min-width:50px">状态栏背景</span>
+            <input type="color" id="input-status-bg" value="#0f1a35" style="width:22px;height:18px;padding:0;border:none;cursor:pointer">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+            <span style="min-width:50px">文字颜色</span>
+            <input type="color" id="input-text-color" value="#e0e0e0" style="width:22px;height:18px;padding:0;border:none;cursor:pointer">
+            <span style="min-width:50px">强调色</span>
+            <input type="color" id="input-accent-color" value="#4a90d9" style="width:22px;height:18px;padding:0;border:none;cursor:pointer">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;margin:3px 0">
+            <span style="min-width:50px;font-size:9px;color:#888">提示：修改后刷新页面恢复默认</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
