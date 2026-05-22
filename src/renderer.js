@@ -66,9 +66,9 @@
       renderSplitByType(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
     } else {
       renderOverlay(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH);
+      // overlay 模式下在主画布绘制 Ref 标签
+      drawRefLineLabels(s, pad, plotW, plotH, s.yMin, s.yMax);
     }
-    // 在 clip 区域外绘制 Ref 标签
-    drawRefLineLabels(s, pad, plotW, plotH, s.yMin, s.yMax);
 
     // Update sidebar values (only for visible channels)
     for (const ch of s.channels) {
@@ -218,6 +218,8 @@
       ctx.rect(pad.left, subTop, plotW, subH);
       ctx.clip();
       drawWaveform(ch, subPad, plotW, subH, xStart, xEnd, chYMin[ci], chYMax[ci]);
+      // 分析标注（使用该通道的 Y 范围）
+      drawAnalysisOverlay(s, [ch], xStart, xEnd, subPad, plotW, subH, chYMin[ci], chYMax[ci]);
       ctx.restore();
 
       // Channel label
@@ -243,6 +245,7 @@
     // Crosshair spanning all sub-plots
     drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax);
     drawSelectionOverlay(s, pad, plotW, plotH);
+    drawRefLineLabels(s, pad, plotW, plotH, chYMin[0], chYMax[0]);
   }
 
   function drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax, chSubTop) {
@@ -355,6 +358,8 @@
       for (var ci = 0; ci < grp.channels.length; ci++) {
         drawWaveform(grp.channels[ci], subPad, plotW, subH, xStart, xEnd, gYMin[gi], gYMax[gi]);
       }
+      // 分析标注（使用该分组的 Y 范围）
+      drawAnalysisOverlay(s, grp.channels, xStart, xEnd, subPad, plotW, subH, gYMin[gi], gYMax[gi]);
       ctx.restore();
 
       // Type label
@@ -396,6 +401,7 @@
     }
     drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax, chSubTop);
     drawSelectionOverlay(s, pad, plotW, plotH);
+    drawRefLineLabels(s, pad, plotW, plotH, gYMin[0], gYMax[0]);
   }
 
   function drawSelectionOverlay(s, pad, plotW, plotH) {
@@ -414,7 +420,7 @@
     }
   }
 
-  function drawAnalysisOverlay(s, visibleChannels, xStart, xEnd, pad, plotW, plotH) {
+  function drawAnalysisOverlay(s, visibleChannels, xStart, xEnd, pad, plotW, plotH, yMin, yMax) {
     if (!s.analyzeMode || !s.analyzeRange) return;
     var r = s.analyzeRange;
     var px1 = pad.left + (r.startIdx - xStart) / (xEnd - xStart) * plotW;
@@ -422,6 +428,8 @@
     if (px2 < pad.left || px1 > pad.left + plotW) return;
     px1 = Math.max(pad.left, px1);
     px2 = Math.min(pad.left + plotW, px2);
+    if (yMin === undefined) yMin = s.yMin;
+    if (yMax === undefined) yMax = s.yMax;
 
     // 区域高亮（可隐藏）
     ctx.save();
@@ -444,7 +452,7 @@
       if (stats.count < 2) continue;
 
       // 均值线（中值）
-      var pyMean = pad.top + plotH - (stats.mean - s.yMin) / (s.yMax - s.yMin) * plotH;
+      var pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
       ctx.strokeStyle = ch.color;
       ctx.lineWidth = 1.5;
       ctx.globalAlpha = 0.7;
@@ -459,7 +467,7 @@
       // 最大值标记
       if (stats.maxIdx >= xStart && stats.maxIdx <= xEnd) {
         var pmx = pad.left + (stats.maxIdx - xStart) / (xEnd - xStart) * plotW;
-        var pmy = pad.top + plotH - (stats.max - s.yMin) / (s.yMax - s.yMin) * plotH;
+        var pmy = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
         ctx.fillStyle = s.analysisColor || '#fff';
         ctx.beginPath();
         ctx.moveTo(pmx - 4, pmy - 6);
@@ -477,7 +485,7 @@
       // 最小值标记
       if (stats.minIdx >= xStart && stats.minIdx <= xEnd) {
         var pmn = pad.left + (stats.minIdx - xStart) / (xEnd - xStart) * plotW;
-        var pmny = pad.top + plotH - (stats.min - s.yMin) / (s.yMax - s.yMin) * plotH;
+        var pmny = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
         ctx.fillStyle = s.analysisColor || '#fff';
         ctx.beginPath();
         ctx.moveTo(pmn - 4, pmny + 6);
@@ -494,8 +502,8 @@
 
       // 波动范围指示（竖线双向箭头）
       var midX = (px1 + px2) / 2;
-      var topY = pad.top + plotH - (stats.max - s.yMin) / (s.yMax - s.yMin) * plotH;
-      var botY = pad.top + plotH - (stats.min - s.yMin) / (s.yMax - s.yMin) * plotH;
+      var topY = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
+      var botY = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
       // 总范围标注 - 在区域左侧显示
       var annoColor = s.analysisColor || '#fff';
       ctx.strokeStyle = annoColor;
