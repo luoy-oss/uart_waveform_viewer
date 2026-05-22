@@ -100,6 +100,10 @@
     analysisFontSize: 10,
     analysisColor: '#ffffff',
     analysisShowRegion: true,
+    analysisShowMean: true,
+    analysisShowMaxMin: true,
+    analysisShowRange: true,
+    analysisShowDeviation: true,
 
     // Sidebar collapsed
     sidebarCollapsed: false,

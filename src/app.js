@@ -114,6 +114,31 @@
       window.UWV.state.analysisShowRegion = e.target.checked;
     });
 
+    // Annotation settings panel
+    document.getElementById('btn-anno-settings').addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.getElementById('anno-panel').classList.toggle('visible');
+    });
+    document.getElementById('anno-close').addEventListener('click', function() {
+      document.getElementById('anno-panel').classList.remove('visible');
+    });
+    document.addEventListener('click', function(e) {
+      var panel = document.getElementById('anno-panel');
+      var btn = document.getElementById('btn-anno-settings');
+      if (panel && panel.classList.contains('visible') && !panel.contains(e.target) && e.target !== btn) {
+        panel.classList.remove('visible');
+      }
+    });
+    function setupAnnoCheckbox(id, stateKey) {
+      document.getElementById(id).addEventListener('change', function(e) {
+        window.UWV.state[stateKey] = e.target.checked;
+      });
+    }
+    setupAnnoCheckbox('chk-anno-mean', 'analysisShowMean');
+    setupAnnoCheckbox('chk-anno-maxmin', 'analysisShowMaxMin');
+    setupAnnoCheckbox('chk-anno-range', 'analysisShowRange');
+    setupAnnoCheckbox('chk-anno-deviation', 'analysisShowDeviation');
+
     // Data panel font size
     document.getElementById('input-panel-font').addEventListener('input', function(e) {
       var val = parseInt(e.target.value);

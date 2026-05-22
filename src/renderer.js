@@ -451,98 +451,108 @@
       var stats = s.analysisStats[ch.id];
       if (stats.count < 2) continue;
 
-      // 均值线（中值）
-      var pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
-      ctx.strokeStyle = ch.color;
-      ctx.lineWidth = 1.5;
-      ctx.globalAlpha = 0.7;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.moveTo(px1, pyMean);
-      ctx.lineTo(px2, pyMean);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.globalAlpha = 1;
+      var pyMean, pmx, pmy, pmn, pmny, topY, botY;
 
-      // 最大值标记
-      if (stats.maxIdx >= xStart && stats.maxIdx <= xEnd) {
-        var pmx = pad.left + (stats.maxIdx - xStart) / (xEnd - xStart) * plotW;
-        var pmy = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
-        ctx.fillStyle = s.analysisColor || '#fff';
+      if (s.analysisShowMean) {
+        pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
+        ctx.strokeStyle = ch.color;
+        ctx.lineWidth = 1.5;
+        ctx.globalAlpha = 0.7;
+        ctx.setLineDash([6, 4]);
         ctx.beginPath();
-        ctx.moveTo(pmx - 4, pmy - 6);
-        ctx.lineTo(pmx + 4, pmy - 6);
-        ctx.lineTo(pmx, pmy - 1);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = s.analysisColor || '#fff';
-        ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(stats.max.toFixed(2), pmx + 6, pmy - 2);
+        ctx.moveTo(px1, pyMean);
+        ctx.lineTo(px2, pyMean);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
       }
 
-      // 最小值标记
-      if (stats.minIdx >= xStart && stats.minIdx <= xEnd) {
-        var pmn = pad.left + (stats.minIdx - xStart) / (xEnd - xStart) * plotW;
-        var pmny = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
-        ctx.fillStyle = s.analysisColor || '#fff';
-        ctx.beginPath();
-        ctx.moveTo(pmn - 4, pmny + 6);
-        ctx.lineTo(pmn + 4, pmny + 6);
-        ctx.lineTo(pmn, pmny + 1);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = s.analysisColor || '#fff';
-        ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(stats.min.toFixed(2), pmn + 6, pmny + 2);
+      if (s.analysisShowMaxMin) {
+        // 最大值标记
+        if (stats.maxIdx >= xStart && stats.maxIdx <= xEnd) {
+          pmx = pad.left + (stats.maxIdx - xStart) / (xEnd - xStart) * plotW;
+          pmy = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
+          ctx.fillStyle = s.analysisColor || '#fff';
+          ctx.beginPath();
+          ctx.moveTo(pmx - 4, pmy - 6);
+          ctx.lineTo(pmx + 4, pmy - 6);
+          ctx.lineTo(pmx, pmy - 1);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = s.analysisColor || '#fff';
+          ctx.font = s.analysisFontSize + 'px Consolas, monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'bottom';
+          ctx.fillText(stats.max.toFixed(2), pmx + 6, pmy - 2);
+        }
+        // 最小值标记
+        if (stats.minIdx >= xStart && stats.minIdx <= xEnd) {
+          pmn = pad.left + (stats.minIdx - xStart) / (xEnd - xStart) * plotW;
+          pmny = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
+          ctx.fillStyle = s.analysisColor || '#fff';
+          ctx.beginPath();
+          ctx.moveTo(pmn - 4, pmny + 6);
+          ctx.lineTo(pmn + 4, pmny + 6);
+          ctx.lineTo(pmn, pmny + 1);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = s.analysisColor || '#fff';
+          ctx.font = s.analysisFontSize + 'px Consolas, monospace';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'top';
+          ctx.fillText(stats.min.toFixed(2), pmn + 6, pmny + 2);
+        }
       }
 
-      // 波动范围指示（竖线双向箭头）
-      var midX = (px1 + px2) / 2;
-      var topY = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
-      var botY = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
-      // 总范围标注 - 在区域左侧显示
-      var annoColor = s.analysisColor || '#fff';
-      ctx.strokeStyle = annoColor;
-      ctx.globalAlpha = 0.6;
-      ctx.lineWidth = 1;
-      var arrowX = px1 - 14;
-      ctx.beginPath();
-      ctx.moveTo(arrowX, topY);
-      ctx.lineTo(arrowX, botY);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(arrowX - 3, topY + 4);
-      ctx.lineTo(arrowX, topY);
-      ctx.lineTo(arrowX + 3, topY + 4);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(arrowX - 3, botY - 4);
-      ctx.lineTo(arrowX, botY);
-      ctx.lineTo(arrowX + 3, botY - 4);
-      ctx.stroke();
-      ctx.fillStyle = annoColor;
-      ctx.globalAlpha = 0.9;
-      ctx.font = s.analysisFontSize + 'px Consolas, monospace';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Δ' + stats.range.toFixed(2), arrowX - 4, (topY + botY) / 2);
+      if (s.analysisShowMean) {
+        if (pyMean === undefined) pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
+      }
+      topY = pad.top + plotH - (stats.max - yMin) / (yMax - yMin) * plotH;
+      botY = pad.top + plotH - (stats.min - yMin) / (yMax - yMin) * plotH;
 
-      // 均值→最大值偏差 - 区域左侧
-      var upDiff = stats.max - stats.mean;
-      ctx.fillStyle = annoColor;
-      ctx.globalAlpha = 0.9;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('+' + upDiff.toFixed(2), arrowX - 4, (pyMean + topY) / 2);
+      if (s.analysisShowRange) {
+        var annoColor = s.analysisColor || '#fff';
+        ctx.strokeStyle = annoColor;
+        ctx.globalAlpha = 0.6;
+        ctx.lineWidth = 1;
+        var arrowX = px1 - 14;
+        ctx.beginPath();
+        ctx.moveTo(arrowX, topY);
+        ctx.lineTo(arrowX, botY);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowX - 3, topY + 4);
+        ctx.lineTo(arrowX, topY);
+        ctx.lineTo(arrowX + 3, topY + 4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(arrowX - 3, botY - 4);
+        ctx.lineTo(arrowX, botY);
+        ctx.lineTo(arrowX + 3, botY - 4);
+        ctx.stroke();
+        ctx.fillStyle = annoColor;
+        ctx.globalAlpha = 0.9;
+        ctx.font = s.analysisFontSize + 'px Consolas, monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Δ' + stats.range.toFixed(2), arrowX - 4, (topY + botY) / 2);
+        ctx.globalAlpha = 1;
+      }
 
-      // 均值→最小值偏差 - 区域左侧
-      var downDiff = stats.mean - stats.min;
-      ctx.fillText('-' + downDiff.toFixed(2), arrowX - 4, (pyMean + botY) / 2);
-      ctx.globalAlpha = 1;
+      if (s.analysisShowDeviation && s.analysisShowMean) {
+        if (pyMean === undefined) pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
+        var upDiff = stats.max - stats.mean;
+        var downDiff = stats.mean - stats.min;
+        var annoColor = s.analysisColor || '#fff';
+        ctx.fillStyle = annoColor;
+        ctx.globalAlpha = 0.9;
+        ctx.font = s.analysisFontSize + 'px Consolas, monospace';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('+' + upDiff.toFixed(2), px1 - 4, (pyMean + topY) / 2);
+        ctx.fillText('-' + downDiff.toFixed(2), px1 - 4, (pyMean + botY) / 2);
+        ctx.globalAlpha = 1;
+      }
     }
 
     // 绘制用户设置的参考线（线本身保留在 clip 内）

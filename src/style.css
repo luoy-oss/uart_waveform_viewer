@@ -137,6 +137,14 @@ input[type="checkbox"] { accent-color: var(--checkbox-accent); cursor: pointer; 
 #theme-panel { position: absolute; bottom: 100%; right: 10px; z-index: 30; background: rgba(22,33,62,0.96); border: 1px solid var(--accent); border-radius: 6px; min-width: 260px; display: none; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); margin-bottom: 4px; }
 #theme-panel.visible { display: block; }
 
+/* Annotation settings panel */
+#anno-panel { position: absolute; bottom: 100%; left: 10px; z-index: 30; background: rgba(22,33,62,0.96); border: 1px solid var(--accent); border-radius: 6px; min-width: 150px; display: none; box-shadow: 0 -4px 16px rgba(0,0,0,0.4); margin-bottom: 4px; }
+#anno-panel.visible { display: block; }
+#anno-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-bottom: 1px solid var(--border-color); font-size: 11px; color: var(--accent); font-weight: bold; }
+#anno-panel-body { padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
+#anno-panel-body label { font-size: 11px; color: var(--text-color); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+#anno-panel-body input[type="checkbox"] { margin: 0; }
+
 /* scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--panel-bg); }
