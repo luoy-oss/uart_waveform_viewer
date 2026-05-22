@@ -545,7 +545,7 @@
       ctx.font = '9px Consolas, monospace';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'top';
-      ctx.fillText('(ms)', pad.left + plotW, pad.top + plotH + 4);
+      ctx.fillText('', pad.left + plotW, pad.top + plotH + 4);
     }
   }
 

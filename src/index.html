@@ -41,6 +41,23 @@
   <input type="file" id="file-import" accept=".csv,.json" style="display:none;">
   <div class="separator"></div>
   <button id="btn-lang" class="btn" title="切换语言 / Switch Language">EN</button>
+  <button id="hint-toggle" class="btn" title="操作帮助 / Help">?</button>
+  <div id="hint-panel">
+    <div id="hint-header">
+      <span data-i18n="hintTitle">操作指南</span>
+      <button id="hint-close">&times;</button>
+    </div>
+    <div id="hint-body">
+      <div class="hint-item"><kbd>LMB</kbd> <span data-i18n="hintLeftClick">左键点击 — 显示数值</span></div>
+      <div class="hint-item"><kbd>LMB Drag</kbd> <span data-i18n="hintLeftDrag">左键拖拽 — 框选放大</span></div>
+      <div class="hint-item"><kbd>RMB Drag</kbd> <span data-i18n="hintRightDrag">右键拖拽 — 自由平移</span></div>
+      <div class="hint-item"><kbd>Scroll</kbd> <span data-i18n="hintScroll">滚轮 — Y轴缩放</span></div>
+      <div class="hint-item"><kbd>Shift+Scroll</kbd> <span data-i18n="hintShiftScroll">Shift+滚轮 — X轴缩放</span></div>
+      <div class="hint-item"><kbd>Ctrl+Z</kbd> <span data-i18n="hintUndo">撤销</span></div>
+      <div class="hint-item"><kbd>Ctrl+Y</kbd> <span data-i18n="hintRedo">重做</span></div>
+      <div class="hint-item"><kbd>Hover</kbd> <span data-i18n="hintHover">悬停 — 十字线参考</span></div>
+    </div>
+  </div>
 </div>
 
 <!-- Main area -->
@@ -65,23 +82,6 @@
     <div id="canvas-container">
       <canvas id="waveform-canvas"></canvas>
       <div id="tooltip"></div>
-      <button id="hint-toggle" title="操作帮助 / Help">?</button>
-      <div id="hint-panel">
-        <div id="hint-header">
-          <span data-i18n="hintTitle">操作指南</span>
-          <button id="hint-close">&times;</button>
-        </div>
-        <div id="hint-body">
-          <div class="hint-item"><kbd>LMB</kbd> <span data-i18n="hintLeftClick">左键点击 — 显示数值</span></div>
-          <div class="hint-item"><kbd>LMB Drag</kbd> <span data-i18n="hintLeftDrag">左键拖拽 — 框选放大</span></div>
-          <div class="hint-item"><kbd>RMB Drag</kbd> <span data-i18n="hintRightDrag">右键拖拽 — 自由平移</span></div>
-          <div class="hint-item"><kbd>Scroll</kbd> <span data-i18n="hintScroll">滚轮 — Y轴缩放</span></div>
-          <div class="hint-item"><kbd>Shift+Scroll</kbd> <span data-i18n="hintShiftScroll">Shift+滚轮 — X轴缩放</span></div>
-          <div class="hint-item"><kbd>Ctrl+Z</kbd> <span data-i18n="hintUndo">撤销</span></div>
-          <div class="hint-item"><kbd>Ctrl+Y</kbd> <span data-i18n="hintRedo">重做</span></div>
-          <div class="hint-item"><kbd>Hover</kbd> <span data-i18n="hintHover">悬停 — 十字线参考</span></div>
-        </div>
-      </div>
       <div id="minimap-container">
         <canvas id="minimap-canvas" width="220" height="100"></canvas>
       </div>
