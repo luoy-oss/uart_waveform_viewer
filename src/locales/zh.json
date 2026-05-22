@@ -77,6 +77,8 @@
   "splitViewTip": "切换：关闭 / 按通道 / 按类型",
   "splitChannel": "按通道",
   "splitType": "按类型",
+  "analyzeTip": "切换分析模式 — 拖拽选择区间，显示最大/最小/均值/波动范围",
+  "clearAnalysisTip": "清除分析结果",
   "timeUnitTip": "切换时间/点数轴",
   "sampleInterval": "间隔",
   "resetTimeOnZoom": "时间归零",

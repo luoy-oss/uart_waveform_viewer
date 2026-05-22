@@ -77,6 +77,8 @@
   "splitViewTip": "Toggle: Off / By Channel / By Type",
   "splitChannel": "By Channel",
   "splitType": "By Type",
+  "analyzeTip": "Toggle analyze mode — drag to select region, show min/max/mean/range",
+  "clearAnalysisTip": "Clear analysis results",
   "timeUnitTip": "Toggle time/point axis",
   "sampleInterval": "Interval",
   "resetTimeOnZoom": "Reset Time",

@@ -89,6 +89,13 @@
     // Waveform line width
     lineWidth: 1.5,
 
+    // Analysis mode
+    analyzeMode: false,
+    analyzeRange: null,       // { startIdx, endIdx } 或 null
+    analysisStats: null,      // { chId: { min, max, mean, range }, ... }
+    refLineValue: null,       // 自定义参考中值线 Y 值 (Ch0)
+    showRefLine: false,
+
     // Stats
     lineCount: 0,
     errorCount: 0,

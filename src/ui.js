@@ -182,6 +182,10 @@
     s.xScroll = 0;
     s.historyStack = [];
     s.historyIndex = -1;
+    s.analyzeRange = null;
+    s.analysisStats = null;
+    s.showRefLine = false;
+    s.refLineValue = null;
     dismissLockedCrosshair();
   }
 
@@ -363,6 +367,24 @@
     if (count === 0) {
       panel.innerHTML = '<div class="data-panel-title">' + t('dataPanelEmpty') + '</div>';
     } else {
+      // 分析模式下附加统计信息
+      if (s.analyzeMode && s.analysisStats) {
+        html += '<div style="border-top:1px solid #1a4080;margin-top:6px;padding-top:6px;font-size:10px">';
+        for (const ch of visibleChannels) {
+          var st = s.analysisStats[ch.id];
+          if (!st || st.count < 2) continue;
+          html += '<div style="color:' + ch.color + ';font-weight:bold;margin-top:4px">' + ch.name + '</div>';
+          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>最小值</span><span>' + st.min.toFixed(4) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>最大值</span><span>' + st.max.toFixed(4) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>均值</span><span>' + st.mean.toFixed(4) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;padding-left:6px"><span>波动范围</span><span>' + st.range.toFixed(4) + '</span></div>';
+          html += '<div style="display:flex;justify-content:space-between;padding-left:6px;color:#888"><span>采样点数</span><span>' + st.count + '</span></div>';
+        }
+        if (s.showRefLine && s.refLineValue !== null) {
+          html += '<div style="border-top:1px solid #1a4080;margin-top:4px;padding-top:4px;color:#f39c12">参考中值: ' + s.refLineValue.toFixed(4) + ' <span style="color:#888;font-size:9px">(Ctrl+点击图设置)</span></div>';
+        }
+        html += '</div>';
+      }
       panel.innerHTML = html;
     }
   }
@@ -404,6 +426,17 @@
       document.getElementById('waveform-canvas').style.cursor = 'grabbing';
       e.preventDefault();
     } else if (e.button === 0) {
+      // Ctrl+Click in analyze mode: set reference line
+      if (s.analyzeMode && e.ctrlKey &&
+          e.offsetX >= p.pad.left && e.offsetX <= p.pad.left + p.plotW &&
+          e.offsetY >= p.pad.top && e.offsetY <= p.pad.top + p.plotH) {
+        e.preventDefault();
+        var clickY = s.yMax - (e.offsetY - p.pad.top) / p.plotH * (s.yMax - s.yMin);
+        s.refLineValue = clickY;
+        s.showRefLine = true;
+        updateDataPanel();
+        return;
+      }
       // Left click: start region selection (if in plot area)
       if (e.offsetX >= p.pad.left && e.offsetX <= p.pad.left + p.plotW &&
           e.offsetY >= p.pad.top && e.offsetY <= p.pad.top + p.plotH) {
@@ -483,6 +516,17 @@
         s.lockedMouseX = lockX;
         s.lockedMouseY = my;
         updateDataPanel();
+      } else if (s.analyzeMode) {
+        // 分析模式：选择区间用于统计分析
+        const xr = getXRange();
+        const frac1 = (x1 - p.pad.left) / p.plotW;
+        const frac2 = (x2 - p.pad.left) / p.plotW;
+        const idx1 = Math.round(xr.xStart + frac1 * (xr.xEnd - xr.xStart));
+        const idx2 = Math.round(xr.xStart + frac2 * (xr.xEnd - xr.xStart));
+        if (Math.abs(idx2 - idx1) >= 2) {
+          s.analyzeRange = { startIdx: Math.min(idx1, idx2), endIdx: Math.max(idx1, idx2) };
+          computeAnalysisStats();
+        }
       } else {
         // Region selection: zoom to selected X range
         const xr = getXRange();
@@ -533,6 +577,75 @@
     if (btn) btn.className = s.showMinimap ? 'active' : '';
     var mc = document.getElementById('minimap-container');
     if (mc) mc.style.display = s.showMinimap ? 'block' : 'none';
+  }
+
+  // --- Analysis mode ---
+  function toggleAnalyzeMode() {
+    const s = getState();
+    s.analyzeMode = !s.analyzeMode;
+    var btn = document.getElementById('btn-analyze');
+    if (btn) btn.className = s.analyzeMode ? 'active' : '';
+    var clearBtn = document.getElementById('btn-clear-analysis');
+    if (clearBtn) clearBtn.style.display = s.analyzeMode ? '' : 'none';
+    if (!s.analyzeMode) {
+      s.analyzeRange = null;
+      s.analysisStats = null;
+      s.showRefLine = false;
+      s.refLineValue = null;
+      updateDataPanel();
+    }
+  }
+
+  function clearAnalysis() {
+    const s = getState();
+    s.analyzeRange = null;
+    s.analysisStats = null;
+    s.showRefLine = false;
+    s.refLineValue = null;
+    updateDataPanel();
+  }
+
+  function computeAnalysisStats() {
+    const s = getState();
+    if (!s.analyzeRange) return;
+    var r = s.analyzeRange;
+    var visibleChannels = getVisibleChannels();
+    var stats = {};
+    for (var ci = 0; ci < visibleChannels.length; ci++) {
+      var ch = visibleChannels[ci];
+      var sd = window.UWV.renderer.getSmoothedData(ch);
+      var iStart = Math.max(0, r.startIdx);
+      var iEnd = Math.min(sd.length, r.endIdx);
+      if (iEnd - iStart < 2) continue;
+      var minVal = Infinity, maxVal = -Infinity, sum = 0;
+      var minIdx = iStart, maxIdx = iStart;
+      for (var i = iStart; i < iEnd; i++) {
+        var v = sd[i];
+        sum += v;
+        if (v < minVal) { minVal = v; minIdx = i; }
+        if (v > maxVal) { maxVal = v; maxIdx = i; }
+      }
+      var meanVal = sum / (iEnd - iStart);
+      stats[ch.id] = {
+        min: minVal,
+        max: maxVal,
+        mean: meanVal,
+        range: maxVal - minVal,
+        minIdx: minIdx,
+        maxIdx: maxIdx,
+        count: iEnd - iStart
+      };
+    }
+    s.analysisStats = stats;
+    // 自动设置参考中值为第一个通道的均值
+    if (visibleChannels.length > 0) {
+      var firstCh = visibleChannels[0];
+      if (stats[firstCh.id]) {
+        s.refLineValue = stats[firstCh.id].mean;
+        s.showRefLine = true;
+      }
+    }
+    updateDataPanel();
   }
 
   // --- Split view ---
@@ -858,6 +971,9 @@
     updateUndoRedoButtons: updateUndoRedoButtons,
     toggleMinimap: toggleMinimap,
     toggleDataPanel: toggleDataPanel,
+    toggleAnalyzeMode: toggleAnalyzeMode,
+    clearAnalysis: clearAnalysis,
+    computeAnalysisStats: computeAnalysisStats,
     dismissLockedCrosshair: dismissLockedCrosshair,
     updateDataPanel: updateDataPanel,
     onWheel: onWheel,
