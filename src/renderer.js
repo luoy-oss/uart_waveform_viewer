@@ -539,7 +539,7 @@
         ctx.globalAlpha = 1;
       }
 
-      if (s.analysisShowDeviation && s.analysisShowMean) {
+      if (s.analysisShowDeviation) {
         if (pyMean === undefined) pyMean = pad.top + plotH - (stats.mean - yMin) / (yMax - yMin) * plotH;
         var upDiff = stats.max - stats.mean;
         var downDiff = stats.mean - stats.min;
