@@ -108,14 +108,6 @@
       document.getElementById('txt-axis-font').textContent = val;
     });
 
-    // Axis label controls
-    document.getElementById('input-x-label').addEventListener('input', function(e) {
-      window.UWV.state.xAxisLabel = e.target.value;
-    });
-    document.getElementById('input-y-label').addEventListener('input', function(e) {
-      window.UWV.state.yAxisLabel = e.target.value;
-    });
-
     // Analysis annotation controls
     document.getElementById('input-analysis-font').addEventListener('input', function(e) {
       var val = parseInt(e.target.value);

@@ -7,12 +7,10 @@
   function getState() { return window.UWV.state; }
 
   function calcPad(s) {
-    var axisExtraLeft = s.yAxisLabel ? s.axisFontSize * 1.8 + 10 : 0;
-    var axisExtraBottom = s.xAxisLabel ? s.axisFontSize + 8 : 0;
     return {
       top: 20,
-      bottom: 25 + Math.max(0, (s.axisFontSize - 10) * 1.5) + axisExtraBottom,
-      left: 50 + Math.max(0, (s.analysisFontSize - 10) * 5) + Math.max(0, (s.axisFontSize - 10) * 3) + axisExtraLeft,
+      bottom: 25 + Math.max(0, (s.axisFontSize - 10) * 1.5),
+      left: 50 + Math.max(0, (s.analysisFontSize - 10) * 5) + Math.max(0, (s.axisFontSize - 10) * 3),
       right: 15
     };
   }
@@ -124,7 +122,6 @@
     if (s.yMin >= s.yMax) s.yMax = s.yMin + 1;
 
     drawGrid(pad, plotW, plotH, xStart, xEnd, s.yMin, s.yMax);
-    drawAxisLabels(s, pad, plotW, plotH);
 
     ctx.save();
     ctx.beginPath();
@@ -254,8 +251,6 @@
         ctx.stroke();
       }
     }
-
-    drawAxisLabels(s, pad, plotW, plotH);
 
     // Crosshair spanning all sub-plots
     drawCrosshairSplit(s, visibleChannels, dataLen, xStart, xEnd, pad, plotW, plotH, subH, chYMin, chYMax);
@@ -399,8 +394,6 @@
         ctx.stroke();
       }
     }
-
-    drawAxisLabels(s, pad, plotW, plotH);
 
     // Crosshair spanning all sub-plots
     // Map per-channel Y ranges and sub-plot tops from group ranges
@@ -742,41 +735,35 @@
       ctx.fillText(label, px, pad.top + plotH + 4);
     }
 
-    // Border
+    // 坐标轴（带箭头）
+    var arrowSize = Math.max(6, s.axisFontSize * 0.7);
     ctx.strokeStyle = window.UWV.AXIS_COLOR;
-    ctx.strokeRect(pad.left, pad.top, plotW, plotH);
+    ctx.fillStyle = window.UWV.AXIS_COLOR;
+    ctx.lineWidth = 1.5;
 
-    // X轴单位标注（时间模式下显示）
-    if (s.timeUnitEnabled) {
-      ctx.fillStyle = window.UWV.GRID_TEXT_COLOR;
-      ctx.font = Math.max(8, s.axisFontSize - 1) + 'px Consolas, monospace';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'top';
-      ctx.fillText('', pad.left + plotW, pad.top + plotH + 4);
-    }
-  }
+    // X轴（底部，向右箭头）
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + plotH);
+    ctx.lineTo(pad.left + plotW, pad.top + plotH);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pad.left + plotW, pad.top + plotH);
+    ctx.lineTo(pad.left + plotW - arrowSize, pad.top + plotH - arrowSize / 2);
+    ctx.lineTo(pad.left + plotW - arrowSize, pad.top + plotH + arrowSize / 2);
+    ctx.closePath();
+    ctx.fill();
 
-  function drawAxisLabels(s, pad, plotW, plotH) {
-    if (s.yAxisLabel) {
-      ctx.save();
-      ctx.fillStyle = window.UWV.GRID_TEXT_COLOR;
-      ctx.font = 'bold ' + s.axisFontSize + 'px Consolas, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.translate(pad.left - 10 - s.axisFontSize * 0.8, pad.top + plotH / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillText(s.yAxisLabel, 0, 0);
-      ctx.restore();
-    }
-    if (s.xAxisLabel) {
-      ctx.save();
-      ctx.fillStyle = window.UWV.GRID_TEXT_COLOR;
-      ctx.font = 'bold ' + s.axisFontSize + 'px Consolas, monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(s.xAxisLabel, pad.left + plotW / 2, pad.top + plotH + 18);
-      ctx.restore();
-    }
+    // Y轴（左侧，向上箭头）
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + plotH);
+    ctx.lineTo(pad.left, pad.top);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left - arrowSize / 2, pad.top + arrowSize);
+    ctx.lineTo(pad.left + arrowSize / 2, pad.top + arrowSize);
+    ctx.closePath();
+    ctx.fill();
   }
 
   function drawWaveform(ch, pad, plotW, plotH, xStart, xEnd, yMin, yMax) {

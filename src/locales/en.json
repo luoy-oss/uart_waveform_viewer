@@ -84,8 +84,6 @@
   "resetTimeOnZoom": "Reset Time",
   "lineWidth": "Width",
   "axisFont": "Axis",
-  "xLabel": "X-Axis",
-  "yLabel": "Y-Axis",
   "typeEditor": "Channel Names",
   "typeEditorTip": "Customize channel display names",
   "typeKey": "Type",
