@@ -255,7 +255,7 @@
     const canvas = document.getElementById('waveform-canvas');
     const w = canvas.width / (window.devicePixelRatio || 1);
     const h = canvas.height / (window.devicePixelRatio || 1);
-    const pad = { top: 20, bottom: 30, left: 60 + Math.max(0, (s.analysisFontSize - 10) * 5), right: 15 };
+    const pad = window.UWV.renderer.calcPad(s);
     return { w: w, h: h, pad: pad, plotW: w - pad.left - pad.right, plotH: h - pad.top - pad.bottom };
   }
 

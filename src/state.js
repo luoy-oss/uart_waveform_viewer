@@ -105,6 +105,11 @@
     analysisShowRange: true,
     analysisShowDeviation: true,
 
+    // Axis display
+    axisFontSize: 10,
+    xAxisLabel: '',
+    yAxisLabel: '',
+
     // Sidebar collapsed
     sidebarCollapsed: false,
 

@@ -101,6 +101,21 @@
       document.getElementById('txt-line-width').textContent = val.toFixed(1);
     });
 
+    // Axis font size control
+    document.getElementById('input-axis-font').addEventListener('input', function(e) {
+      var val = parseInt(e.target.value);
+      window.UWV.state.axisFontSize = val;
+      document.getElementById('txt-axis-font').textContent = val;
+    });
+
+    // Axis label controls
+    document.getElementById('input-x-label').addEventListener('input', function(e) {
+      window.UWV.state.xAxisLabel = e.target.value;
+    });
+    document.getElementById('input-y-label').addEventListener('input', function(e) {
+      window.UWV.state.yAxisLabel = e.target.value;
+    });
+
     // Analysis annotation controls
     document.getElementById('input-analysis-font').addEventListener('input', function(e) {
       var val = parseInt(e.target.value);
